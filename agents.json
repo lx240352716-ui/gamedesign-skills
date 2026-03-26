@@ -1,0 +1,10 @@
+{
+    "agents": {
+        "blr_agent": {
+            "role": "sub",
+            "workflow": "agents/blr_agent/process/blr_agent_workflow.py",
+            "description": "Auto-generated agent"
+        }
+    },
+    "layers": {}
+}
