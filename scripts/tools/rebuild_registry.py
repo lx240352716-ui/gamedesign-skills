@@ -3,9 +3,11 @@
 全量扫描 excel/ 目录，重建 table_registry.json
 所有 .xlsx 文件都收录，表名 = 去掉扩展名的文件名
 """
-import os, json
+import os, json, sys
 
-EXCEL_DIR = EXCEL_DIR
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'core'))
+from constants import EXCEL_DIR, CONFIGS_DIR
+
 OUTPUT = os.path.join(CONFIGS_DIR, 'table_registry.json')
 
 registry = {}

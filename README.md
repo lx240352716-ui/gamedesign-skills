@@ -26,12 +26,15 @@ pip install -e .
 > pip show hfsm-agent-framework  # 查看 Location 字段
 > ```
 
-### 2. 配置工作目录
+### 2. 一键初始化
 
 ```bash
 # 复制 .env 模板并填入你的项目根目录
 cp .env.example .env
-# 编辑 .env，设置 WORKSPACE_DIR
+# 编辑 .env，设置 WORKSPACE_DIR（见下方说明）
+
+# 运行初始化脚本（自动完成 Step 3-5）
+python scripts/tools/init_project.py
 ```
 
 `.env` 文件内容：
