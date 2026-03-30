@@ -1,0 +1,7 @@
+# HFSM Agent Framework 依赖
+pandas>=1.5
+python-dotenv>=0.20
+transitions>=0.9
+pywin32>=300
+python-calamine>=0.1.0   # 可选，加速 Excel 读取
+openpyxl>=3.0             # pandas Excel 引擎

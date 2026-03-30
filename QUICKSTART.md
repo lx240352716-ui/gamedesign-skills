@@ -32,7 +32,18 @@ git clone https://github.com/lx240352716-ui/hfsm-agent-framework.git references
 
 ---
 
-## 第三步：放入你的 Excel 文件
+## 第三步：安装依赖
+
+```powershell
+cd D:\my_game\references
+pip install -r requirements.txt
+```
+
+> 需要 Python 3.8+。如果公司网络需要代理：`pip install -r requirements.txt --proxy http://127.0.0.1:7890`
+
+---
+
+## 第四步：放入你的 Excel 文件
 
 把你项目的 Excel 配置表复制到 `excel\` 目录下：
 
@@ -50,7 +61,7 @@ D:\my_game\excel\
 
 ---
 
-## 第四步：配置环境变量
+## 第五步：配置环境变量
 
 ```powershell
 cd D:\my_game\references
@@ -65,7 +76,7 @@ WORKSPACE_DIR=D:\my_game
 
 ---
 
-## 第五步：一键初始化
+## 第六步：一键初始化
 
 ```powershell
 cd D:\my_game\references
@@ -95,7 +106,7 @@ python scripts\tools\init_project.py
 
 ---
 
-## 第六步：填写知识库（核心步骤）
+## 第七步：填写知识库（核心步骤）
 
 打开 `agents\` 目录，每个 Agent 的 `knowledge\` 文件夹里有模板 `.md` 文件。  
 用你自己项目的规则去填它们：
@@ -112,7 +123,7 @@ python scripts\tools\init_project.py
 
 ---
 
-## 第七步：启动
+## 第八步：启动
 
 ```powershell
 cd D:\my_game\references
