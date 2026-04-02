@@ -66,7 +66,13 @@ def main():
     for xlsx_path in xlsx_files:
         basename = os.path.splitext(os.path.basename(xlsx_path))[0]
         rel_path = os.path.relpath(xlsx_path, EXCEL_DIR)
-        registry[basename] = rel_path
+        # 子目录的表加目录前缀避免重名: fight/_Buff → "fight/_Buff"
+        rel_dir = os.path.relpath(os.path.dirname(xlsx_path), EXCEL_DIR)
+        if rel_dir != '.':
+            table_name = rel_dir.replace(os.sep, '/') + '/' + basename
+        else:
+            table_name = basename
+        registry[table_name] = rel_path
     
     with open(registry_path, 'w', encoding='utf-8') as f:
         json.dump(registry, f, ensure_ascii=False, indent=2)

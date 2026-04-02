@@ -16,6 +16,10 @@ for root, dirs, files in os.walk(EXCEL_DIR):
             continue
         table_name = os.path.splitext(f)[0]
         rel_path = os.path.relpath(os.path.join(root, f), EXCEL_DIR)
+        # 子目录的表加目录前缀避免重名: fight/_Buff → "fight/_Buff"
+        rel_dir = os.path.relpath(root, EXCEL_DIR)
+        if rel_dir != '.':
+            table_name = rel_dir.replace(os.sep, '/') + '/' + table_name
         
         if table_name in registry:
             print(f"  [WARN] 重名: {table_name} → {registry[table_name]} vs {rel_path}")
