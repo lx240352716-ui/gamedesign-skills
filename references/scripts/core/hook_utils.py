@@ -85,6 +85,45 @@ def append_pending(data_dir, target, content):
     save_json(pending_path, pending)
 
 
+def commit_pending(agent_dir):
+    """从 pending_examples.json 提交所有条目到 knowledge/ 目标文件。
+
+    提交后清空 pending。供 L0 review 和轻量 Skill 共用。
+
+    Args:
+        agent_dir: Agent 的根目录（如 agents/combat_memory/）
+    Returns:
+        list[str]: 已提交的目标文件列表
+    """
+    data_dir = os.path.join(agent_dir, 'data')
+    knowledge_dir = os.path.join(agent_dir, 'knowledge')
+    pending_path = os.path.join(data_dir, 'pending_examples.json')
+
+    if not os.path.exists(pending_path):
+        return []
+
+    pending = load_json(pending_path)
+    if not pending or not pending.get('entries'):
+        return []
+
+    committed = []
+    for entry in pending['entries']:
+        target = os.path.join(knowledge_dir, entry['target'])
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        with open(target, 'a', encoding='utf-8') as f:
+            f.write(entry['content'])
+        committed.append(entry['target'])
+
+    # 清空 pending
+    save_json(pending_path, {
+        "task_id": pending.get("task_id", ""),
+        "requirement": pending.get("requirement", ""),
+        "entries": []
+    })
+
+    return committed
+
+
 # ── 字段上下文公共入口 ──
 
 def prepare_field_context(table_names):
