@@ -71,14 +71,31 @@
 
 ---
 
-## 下一步：对标 CC 源码优化
+## 已完成：对标 CC 源码优化 ✅
 
 > 对比 `d:\claude-code-main` 的 CC 实现，找可借鉴的模式
 
-- [ ] **Session Memory** — CC 后台自动提取对话要点，是否移植到 /design 流程？
-- [ ] **Memory 分类** — CC 有 user/feedback/project/reference 四类，我们是否需要细分？
-- [ ] **Agent Memory scope** — CC 支持 user/project/local 三个 scope，我们只有 project
-- [ ] **Skill 改进反馈** — CC 有 `skillImprovement` 机制，对照我们的复盘规则
-- [ ] **compact（压缩）** — CC 有 `sessionMemoryCompact`，对照我们的长对话处理
-- [ ] **全量路径清理验证** — 每次路径修改 commit 前必须 grep 全量扫描
+- [x] **Session Memory** — 暂不需要（HFSM 天然分段，对话轮次短）
+- [x] **Memory 分类** — 暂不需要细分（当前单项目单用户）
+- [x] **Agent Memory scope** — 暂不需要多 scope（.env 代替 local scope）
+- [x] **Skill 改进反馈** — ✅ 已提取通用复盘规则到 CLAUDE.md
+- [x] **compact（压缩）** — 暂不需要（HFSM 状态切换天然分段）
+- [x] **全量路径清理验证** — ✅ 已做 grep 扫描，0 硬编码残留
+
+---
+
+## 下一步
+
+### 待用户操作
+
+- [ ] 阿里云百炼控制台充值 / 获取有效 API Key
+- [ ] 钉钉开放平台创建应用 → 获取 AppKey/AppSecret
+- [ ] 将 Key 填入 .env → 跑 test_llm.py 验证
+- [ ] 更新 QUICKSTART.md（加入服务启动说明）
+
+### 项目优化
+
+- [ ] 端到端验证：用 `/design` 跑完整角色设计，验证通用复盘规则生效
+- [ ] 项目展示文档：用 AI 岗位 JD 语言重新包装 HFSM 项目（README 升级）
+- [ ] 知识库扩充：积累更多 combat/numerical examples
 
