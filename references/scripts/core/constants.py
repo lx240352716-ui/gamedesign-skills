@@ -17,10 +17,12 @@ import os
 BASE_DIR = os.environ.get('WORKSPACE_DIR') or os.path.dirname(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 )
-EXCEL_DIR = os.path.join(BASE_DIR, 'excel')
+GAMEDATA_DIR = os.path.join(BASE_DIR, 'knowledge', 'gamedata')
+# 向后兼容
+EXCEL_DIR = GAMEDATA_DIR
 REFERENCES_DIR = os.path.join(BASE_DIR, 'references')
-OUTPUT_DIR = os.path.join(REFERENCES_DIR, 'output')
-DESIGN_DIR = os.path.join(REFERENCES_DIR, 'design')
+OUTPUT_DIR = os.path.join(BASE_DIR, 'output')
+KNOWLEDGE_DIR = os.path.join(BASE_DIR, 'knowledge')
 CORE_DIR = os.path.join(REFERENCES_DIR, 'scripts', 'core')
 CONFIGS_DIR = os.path.join(REFERENCES_DIR, 'scripts', 'configs')
 PIPELINES_DIR = os.path.join(CONFIGS_DIR, 'pipelines')

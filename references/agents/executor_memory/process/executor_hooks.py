@@ -369,23 +369,25 @@ def on_enter_write():
     for tbl in tables:
         header_maps[tbl] = _get_cols(tbl)['col_map']
 
-    # ── 1. 实时分配 ID ──
+    # ── 1. 解析占位符 → 分配真实 ID ──
+    # 占位符格式：<<NEW_X>>，由 numerical_hooks on_enter_output 生成
+    # 如果没有占位符（旧数据），走原有的 max_id 分配逻辑
+    import re
+    placeholder_pattern = re.compile(r'<<NEW_\d+>>')
+
     allocated_ids = {}
-    old_to_new = {}
+    placeholder_to_real = {}  # {"<<NEW_1>>": "1001", "<<NEW_2>>": "1002", ...}
     table_en_cn = {}
 
     for table_name, rows in tables.items():
         if not rows:
             continue
 
-        # 用 get_columns 获取 en→cn 映射
         col_info = _get_cols(table_name)
         en_cn = col_info['en_cn']
         table_en_cn[table_name] = en_cn
 
         first_key = list(rows[0].keys())[0]
-
-        # 英文主键 → 中文列名 → 查 SQLite max_id
         pk_cn = en_cn.get(first_key, first_key)
 
         try:
@@ -393,49 +395,38 @@ def on_enter_write():
         except Exception:
             current_max = 0
 
-        # 为所有行分配连续 ID
+        # 收集本表所有占位符并分配连续 ID
         new_ids = []
         for i, row in enumerate(rows):
-            old_id = row.get(first_key)
+            old_val = str(row.get(first_key, ''))
             new_id = current_max + 1 + i
 
-            if str(old_id) != str(new_id):
-                old_to_new[str(old_id)] = str(new_id)
+            if placeholder_pattern.match(old_val):
+                # 占位符 → 映射到真实 ID
+                placeholder_to_real[old_val] = str(new_id)
+            else:
+                # 兼容旧数据（非占位符），走原有逻辑
+                if old_val != str(new_id):
+                    placeholder_to_real[old_val] = str(new_id)
 
             row[first_key] = str(new_id)
             new_ids.append(new_id)
 
         allocated_ids[table_name] = {
             "pk_field": first_key,
-            "old_id": rows[0].get(first_key) if len(rows) == 1 else [r.get(first_key) for r in rows],
             "new_id": new_ids[0] if len(new_ids) == 1 else new_ids,
         }
 
-    # ── 2. 同步跨表引用 + 记录 cross_references ──
+    # ── 2. 替换所有占位符（含主键和跨表引用字段） ──
     cross_references = []
-    if old_to_new:
-        # 构建 old_id → 源表 的反查
-        id_to_source = {}  # {old_id_str: (source_table, pk_field)}
-        for tbl, info in allocated_ids.items():
-            id_to_source[str(info['old_id'])] = (tbl, info['pk_field'])
-
+    if placeholder_to_real:
         for table_name, rows in tables.items():
             for row in rows:
                 for key, val in row.items():
                     if isinstance(val, str):
-                        for old_id, new_id in old_to_new.items():
-                            if old_id in val:
-                                # 记录：哪张表的哪个字段引用了哪个 target
-                                source_tbl, source_pk = id_to_source.get(old_id, (None, None))
-                                if source_tbl and source_tbl != table_name:
-                                    cross_references.append({
-                                        "source_table": table_name,
-                                        "source_field": key,
-                                        "target_table": source_tbl,
-                                        "target_field": source_pk,
-                                        "value": new_id,
-                                    })
-                            val = val.replace(old_id, new_id)
+                        for placeholder, real_id in placeholder_to_real.items():
+                            if placeholder in val:
+                                val = val.replace(placeholder, real_id)
                         row[key] = val
 
     # ── 3. 校验 ──

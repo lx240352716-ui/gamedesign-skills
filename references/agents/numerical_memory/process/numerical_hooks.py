@@ -339,11 +339,13 @@ def on_enter_output():
     """
     进入 output:
     1. 读 filled.json
-    2. 对每个表调 max_id 分配主键
+    2. 为每个表生成占位符 ID（<<NEW_1>> 等），不调 max_id
     3. 统一取字段映射（通过 prepare_field_context）
     4. 组装标准 output.json（字段统一用 Row6 英文名）
+
+    注意：真实 ID 分配推迟到 executor write 阶段，避免重试导致 ID 跳跃。
     """
-    from table_reader import max_id as get_max_id, get_columns
+    from table_reader import get_columns
 
     filled = _load_json(os.path.join(DATA_DIR, 'filled.json'))
 
@@ -352,8 +354,9 @@ def on_enter_output():
     # 统一取字段映射（中间层公共接口）
     field_ctx = prepare_field_context(table_names)
 
-    # 自动分配 ID
-    allocated_ids = {}
+    # 生成占位符 ID（不调 max_id，避免重试 ID 跳跃）
+    placeholder_ids = {}
+    placeholder_counter = 1
     if filled and 'tables' in filled:
         for table_name in filled['tables']:
             fm = field_ctx['field_maps'].get(table_name, {})
@@ -361,30 +364,31 @@ def on_enter_output():
 
             if en_fields:
                 pk_field_en = en_fields[0]
-                # 用 get_columns 获取 SQLite 中文列名用于 max_id 查询
                 col_info = get_columns(table_name)
                 cn_cols = col_info['cn']
                 pk_field_cn = cn_cols[0] if cn_cols else pk_field_en
-                try:
-                    current_max = get_max_id(table_name, pk_field_cn) or 0
-                    allocated_ids[table_name] = {
-                        "pk_field_cn": pk_field_cn,
-                        "pk_field_en": pk_field_en,
-                        "max_id": current_max,
-                        "next_id": current_max + 1,
-                    }
-                except Exception:
-                    allocated_ids[table_name] = {"pk_field_en": pk_field_en, "error": "无法获取 max_id"}
+
+                rows = filled['tables'][table_name]
+                row_count = len(rows) if isinstance(rows, list) else 1
+                placeholders = [f"<<NEW_{placeholder_counter + i}>>" for i in range(row_count)]
+                placeholder_counter += row_count
+
+                placeholder_ids[table_name] = {
+                    "pk_field_cn": pk_field_cn,
+                    "pk_field_en": pk_field_en,
+                    "placeholders": placeholders,
+                    "note": "占位符 ID，真实 ID 在 executor write 阶段统一分配",
+                }
 
     return {
         "knowledge": [_load_md('numerical_rules.md')],
         "filled_data": filled,
-        "allocated_ids": allocated_ids,
+        "placeholder_ids": placeholder_ids,
         "field_context": field_ctx,
         "instruction": (
             "将用户填好的数据组装为标准 output.json：\n"
-            "1. 使用 allocated_ids 中的 next_id 填充主键\n"
-            "2. 关联跨表 ID\n"
+            "1. 使用 placeholder_ids 中的占位符（如 <<NEW_1>>）填充主键\n"
+            "2. 跨表引用也用占位符（如 triggerBuff 填 <<NEW_2>>）\n"
             f"3. {field_ctx['instruction']}\n"
             "4. 格式：\n"
             "{\n"
@@ -394,7 +398,8 @@ def on_enter_output():
             '  "reference": "参考的案例",\n'
             '  "tables": { "表名": [{ Row6英文字段: 值 }] }\n'
             "}\n"
-            "5. 写入 data/output.json"
+            "5. 写入 data/output.json\n"
+            "注意：主键和跨表引用必须用 <<NEW_X>> 占位符，不要填数字 ID！"
         ),
     }
 

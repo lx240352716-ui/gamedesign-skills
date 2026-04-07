@@ -1,13 +1,17 @@
-# ── 游戏配表（太大，不进 git） ──
-excel/
+# ── 知识库（源数据+提炼知识，不进 git） ──
+knowledge/
 
 # ── 嵌套 git 仓库 ──
 hfsm-agent-framework/
 hfsm-test-clone/
 
+# ── 项目开发管理（不入 git） ──
+.dev/
+test_sim_project/
+
 # ── 运行时产物 ──
+output/
 references/scripts/core/table_index.db
-references/scripts/output/
 references/agents/*/data/
 
 # ── Python ──

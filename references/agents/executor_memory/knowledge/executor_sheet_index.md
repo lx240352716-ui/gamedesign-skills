@@ -1,6 +1,6 @@
 # 模块数值速查 — 怀旧服数值总表
 
-> 来源：`references/design/data/怀旧服数值总表.xlsx`（72个sheet）
+> 来源：`knowledge/gamedocs/怀旧服数值总表.xlsx`（72个sheet）
 > 角色：资深策划 专用 — S2关联查找时参考
 
 ## Sheet索引表（按模块分类）

@@ -95,18 +95,16 @@ L1 战斗   L1 数值 ── 领域推理、定位目标表、生成填写方案
 
 | 区域 | 目录 | 说明 |
 |:-----|:-----|:-----|
-| 上传 | `excel/` | 源数据 Excel（1000+ 张），只读 |
-| 工作 | 各 Agent 的 `data/` + `output/` | 运行时临时文件，每次任务可清理 |
-| 输出 | `staging/` | 待策划确认的交付物，按案例组织 |
+| 知识库 | `knowledge/` | 源数据 Excel + 提练知识（不入 git） |
+| 输出 | `output/` | 任务输出 + 待确认产物（staging/） |
+| 引擎 | `references/` | Agent 记忆 + 脚本 |
 
-**技能系统（按需加载）**
+**知识系统（按需加载）**
 
 | 目录 | 内容 |
 |:-----|:-----|
+| `knowledge/*.md` | 业务知识库（速查表、系统描述、表关系） |
 | 各 Agent 的 `knowledge/` | Agent 专属规则、案例、设计模式 |
-| `design/` | 设计参考（因子/目标/时机查找表） |
-| `domains/` | 游戏系统领域知识（技能/Buff/Boss...） |
-| `mapping/` | 表间关系映射 |
 
 **长期记忆（跨会话持久化）**
 
@@ -114,18 +112,17 @@ L1 战斗   L1 数值 ── 领域推理、定位目标表、生成填写方案
 |:-----|:-----|:-----|
 | 知识库 | 各 Agent 的 `knowledge/*.md` | 规则和案例，任务完成后通过 pending 机制追加 |
 | 案例归档 | `agents/archive/` | 已完成案例的复盘报告 |
-| 项目 TODO | `agents/coordinator_memory/todo_architecture.md` | 唯一的待办维护点 |
+| 项目 TODO | `.dev/todo.md` | 唯一的待办维护点（不入 git） |
 
 ### 工具 / 引擎层
 
 | 目录 | 内容 |
 |:-----|:-----|
 | `scripts/core/` | HFSM 状态机引擎、工作流执行器、表读写 |
-| `scripts/workflow/` | 变更追踪、Agent 间 JSON 交接 |
-| `scripts/cli/` | 命令行工具（SQL 查询、因子检索、表搜索） |
-| `scripts/tools/` | 辅助工具（表目录生成、注册表重建、QA 运行器） |
+| `scripts/cli/` | 命令行工具（查询、校验、初始化、交接、QA） |
+| `scripts/server/` | 独立服务端（FastAPI + 钉钉） |
 | `scripts/configs/` | 配置文件（表注册表、状态转换、白名单） |
-| `scripts/tests/` | 测试脚本（43 个） |
+| `scripts/tests/` | 测试脚本 |
 | `.claude/skills/` | AI 斜杠命令定义（`/design`、`/quick`、`/lookup`、`/consult`、`/status`） |
 
 ---

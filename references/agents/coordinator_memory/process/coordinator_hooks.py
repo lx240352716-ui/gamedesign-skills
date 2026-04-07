@@ -16,9 +16,12 @@ from datetime import datetime
 
 # ── 路径常量 ──
 
-sys.path.insert(0, os.path.join(r'G:\op_design', 'references', 'scripts', 'core'))
+sys.path.insert(0, os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
+    'references', 'scripts', 'core'
+))
 
-from constants import REFERENCES_DIR, AGENTS_DIR, agent_paths
+from constants import REFERENCES_DIR, AGENTS_DIR, OUTPUT_DIR, agent_paths
 from hook_utils import load_md_batch, init_pending, append_pending
 
 _p = agent_paths('coordinator_memory')
@@ -169,7 +172,7 @@ def on_enter_review():
     import glob
 
     QA_DIR = agent_paths('qa_memory')['agent_dir']
-    OUTPUT_DIR = os.path.join(REFERENCES_DIR, 'output')
+    # OUTPUT_DIR 已从 constants 导入
 
     # ── 1. 读取 L3 结果 ──
     l3_done_path = os.path.join(QA_DIR, 'l3_done.json')

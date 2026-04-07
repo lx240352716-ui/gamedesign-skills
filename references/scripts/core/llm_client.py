@@ -20,6 +20,7 @@ import sys
 # 加载 .env
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REFERENCES_DIR = os.path.normpath(os.path.join(SCRIPT_DIR, '..', '..'))
+BASE_DIR = os.path.normpath(os.path.join(REFERENCES_DIR, '..'))
 
 _env_loaded = False
 
@@ -28,16 +29,18 @@ def _load_env():
     global _env_loaded
     if _env_loaded:
         return
-    env_path = os.path.join(REFERENCES_DIR, '.env')
-    if os.path.exists(env_path):
-        with open(env_path, encoding='utf-8') as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith('#') and '=' in line:
-                    k, v = line.split('=', 1)
-                    k, v = k.strip(), v.strip()
-                    if k and v and k not in os.environ:
-                        os.environ[k] = v
+    # 优先项目根目录，兜底 references/
+    for candidate in [os.path.join(BASE_DIR, '.env'), os.path.join(REFERENCES_DIR, '.env')]:
+        if os.path.exists(candidate):
+            with open(candidate, encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#') and '=' in line:
+                        k, v = line.split('=', 1)
+                        k, v = k.strip(), v.strip()
+                        if k and v and k not in os.environ:
+                            os.environ[k] = v
+            break
     _env_loaded = True
 
 
