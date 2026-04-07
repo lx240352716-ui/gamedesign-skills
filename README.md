@@ -1,4 +1,4 @@
-# GameTable Copilot
+# GameDesign Skills — 游戏策划工具箱
 
 用自然语言描述需求，AI 自动生成可导入的 Excel 配置表。
 
