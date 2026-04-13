@@ -215,35 +215,185 @@ def on_enter_assemble():
 # ============================================================
 
 def on_enter_wireframe():
-    """提取界面章节 -> 调 Stitch 生成 UI 图。
+    """提取界面章节 -> 调 Stitch MCP API 生成 UI 线框图。
 
-    Phase 3 实现。当前为占位，直接跳过。
+    流程：
+    1. 读 data/ui_sections.json（由 LLM 在 wireframe 状态写入）
+    2. 用 STITCH_API_KEY 调 Stitch MCP API（JSON-RPC 2.0）
+    3. 创建 Stitch project → 对每个 UI section 调 generate_screen_from_text
+    4. 下载截图 PNG 到 data/wireframes/{name}.png
+    5. 返回 trigger: "wireframed" + 截图路径列表
+
+    约注意：
+    - generate_screen_from_text 每次约 60-90 秒，timeout 设 600s
+    - API Key 从 .env 的 STITCH_API_KEY 读取
+    - 如果 STITCH_API_KEY 未设置则降级为占位模式
 
     Returns:
-        dict: {"trigger": "wireframed", "message": str}
+        dict: {"trigger": "wireframed", "screenshots": [...], "project_url": str}
     """
-    draft_path = os.path.join(DATA_DIR, 'draft.md')
+    import urllib.request
+    import urllib.error
 
-    # 提取界面章节（供未来 Stitch 使用）
-    ui_sections = []
-    if os.path.exists(draft_path):
-        with open(draft_path, 'r', encoding='utf-8') as f:
-            draft = f.read()
-        # 找所有 ## 玩法界面 下的 ### 子章节
-        ui_sections = _extract_ui_sections(draft)
+    # ── 1. 读 ui_sections.json ──
+    ui_sections_path = os.path.join(DATA_DIR, 'ui_sections.json')
+    ui_data = load_json(ui_sections_path)
+    ui_sections = ui_data.get('sections', []) if ui_data else []
 
-    if ui_sections:
-        # 保存界面描述供 Stitch 使用
-        save_json(os.path.join(DATA_DIR, 'ui_sections.json'), {
-            "sections": ui_sections,
-            "timestamp": datetime.now().isoformat(),
-        })
+    # ── 2. 读取 API Key ──
+    api_key = _load_stitch_api_key()
+
+    if not api_key:
+        print('[WARN] STITCH_API_KEY not set, wireframe skipped')
+        return {
+            "trigger": "wireframed",
+            "screenshots": [],
+            "message": "[WARN] STITCH_API_KEY not set. Set in .env to enable wireframe.",
+        }
+
+    if not ui_sections:
+        print('[i] wireframe: no UI sections found in ui_sections.json')
+        return {
+            "trigger": "wireframed",
+            "screenshots": [],
+            "message": "[i] No UI sections extracted from draft.",
+        }
+
+    # ── 3. 确保输出目录 ──
+    wf_dir = os.path.join(DATA_DIR, 'wireframes')
+    os.makedirs(wf_dir, exist_ok=True)
+
+    MCP_URL = 'https://stitch.googleapis.com/mcp'
+    MCP_HEADERS = {'X-Goog-Api-Key': api_key, 'Content-Type': 'application/json'}
+    _req_id = [0]
+
+    def _mcp(tool_name, arguments, timeout=600):
+        _req_id[0] += 1
+        payload = {
+            "jsonrpc": "2.0", "method": "tools/call", "id": _req_id[0],
+            "params": {"name": tool_name, "arguments": arguments}
+        }
+        req = urllib.request.Request(
+            MCP_URL, data=json.dumps(payload).encode(),
+            headers=MCP_HEADERS, method='POST'
+        )
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            result = json.loads(resp.read().decode())
+            if 'error' in result:
+                raise RuntimeError(f"Stitch MCP error: {result['error']}")
+            return result.get('result', {})
+
+    # ── 4. 创建或复用 Stitch 项目 ──
+    task_name = ui_data.get('task_name', 'activity')
+    # 如果 ui_sections.json 里有之前记录的 project_id，直接复用（跳过创建+预热）
+    existing_pid = ui_data.get('stitch_project_id', '')
+    if existing_pid:
+        project_id = existing_pid
+        print(f'[i] Stitch: reusing existing project_id={project_id}')
+    else:
+        print(f'[+] Stitch: creating project [{task_name}]...')
+        try:
+            proj_result = _mcp('create_project', {'title': task_name}, timeout=30)
+            struct = proj_result.get('structuredContent', {})
+            project_name = struct.get('name', '')  # "projects/XXXXXXX"
+            project_id = project_name.split('/')[-1] if '/' in project_name else project_name
+            print(f'[OK] project_id={project_id}')
+        except Exception as e:
+            print(f'[ERR] Stitch create_project failed: {e}')
+            return {
+                "trigger": "wireframed",
+                "screenshots": [],
+                "message": f"[ERR] Stitch create_project failed: {e}",
+            }
+
+        # 新项目预热：Stitch 第一次 generate 总是创建 design system 而非 screen
+        # 先发一个预热请求吸收 design system 创建，后续 generate 才会返回真实 screen
+        print(f'[+] Stitch: warming up design system (new project)...')
+        try:
+            _mcp('generate_screen_from_text', {
+                'projectId': project_id,
+                'prompt': '[Mobile] Light mode. Single empty placeholder screen.',
+                'deviceType': 'MOBILE',
+            }, timeout=300)
+            print(f'[OK] design system initialized')
+        except Exception as e:
+            print(f'[WARN] warm-up failed (continuing): {e}')
+
+
+
+    # ── 5. 逐个生成界面 ──
+    screenshots = []
+    for i, section in enumerate(ui_sections):
+        name = section.get('name', f'screen_{i+1}')
+        description = section.get('description', section.get('content', ''))
+        prompt = _build_stitch_prompt(name, description)
+
+        print(f'[+] Stitch: generating screen {i+1}/{len(ui_sections)}: {name}...')
+        try:
+            r = _mcp('generate_screen_from_text', {
+                'projectId': project_id,
+                'prompt': prompt,
+                'deviceType': 'MOBILE',
+            }, timeout=600)
+
+            # 提取截图 downloadUrl
+            screenshot_url = _extract_screenshot_url(r)
+
+            # 第一次 generate 可能只返回 designSystem（Stitch 自动建立设计体系），
+            # 此时需要通过 list_screens 查询刚生成的 screen 的截图 URL
+            if not screenshot_url:
+                print(f'[i] no screenshot in response (may be design system init), '
+                      f'falling back to list_screens...')
+                try:
+                    ls = _mcp('list_screens', {'projectId': project_id}, timeout=30)
+                    screens = (_extract_nested(ls, 'structuredContent', 'screens')
+                               or _extract_nested(ls, 'screens'))
+                    if screens:
+                        # 取最新 screen
+                        latest = screens[-1]
+                        screen_id = (latest.get('id') or
+                                     latest.get('name', '').split('/')[-1])
+                        sg = _mcp('get_screen', {
+                            'projectId': project_id,
+                            'screenId': screen_id,
+                        }, timeout=30)
+                        screenshot_url = _extract_screenshot_url(sg)
+                except Exception as e:
+                    print(f'[WARN] list_screens fallback failed: {e}')
+
+            if screenshot_url:
+                safe_name = name.replace('/', '_').replace(' ', '_')
+                png_path = os.path.join(wf_dir, f'{safe_name}.png')
+                _download_file(screenshot_url, png_path)
+                screenshots.append({
+                    "name": name,
+                    "path": png_path,
+                    "url": screenshot_url,
+                })
+                print(f'[OK] saved: {png_path}')
+            else:
+                print(f'[WARN] no screenshot URL for screen: {name}')
+
+        except Exception as e:
+            print(f'[ERR] Stitch generate failed for {name}: {e}')
+            continue
+
+    # ── 6. 保存结果 ──
+    result_data = {
+        "project_id": project_id,
+        "project_url": f"https://stitch.withgoogle.com/project/{project_id}",
+        "screenshots": screenshots,
+        "timestamp": datetime.now().isoformat(),
+    }
+    save_json(os.path.join(DATA_DIR, 'wireframe_result.json'), result_data)
 
     return {
         "trigger": "wireframed",
-        "message": f"[i] wireframe: {len(ui_sections)} UI section(s) extracted (Stitch not connected yet)",
-        "ui_sections": ui_sections,
+        "project_url": result_data["project_url"],
+        "screenshots": [s["path"] for s in screenshots],
+        "message": f"[OK] {len(screenshots)}/{len(ui_sections)} screens generated",
     }
+
 
 
 # ============================================================
@@ -394,3 +544,96 @@ def _extract_ui_sections(text):
         })
 
     return sections
+
+
+def _load_stitch_api_key():
+    """从 .env 文件加载 STITCH_API_KEY。"""
+    # 先查环境变量
+    key = os.environ.get('STITCH_API_KEY', '')
+    if key:
+        return key
+    # 再查 .env 文件
+    workspace = os.environ.get('WORKSPACE_DIR') or os.path.normpath(
+        os.path.join(AGENT_DIR, '..', '..', '..')
+    )
+    env_path = os.path.join(workspace, '.env')
+    if os.path.exists(env_path):
+        try:
+            with open(env_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    if line.startswith('STITCH_API_KEY='):
+                        return line.strip().split('=', 1)[1]
+        except Exception:
+            pass
+    return ''
+
+
+def _build_stitch_prompt(screen_name, description):
+    """将界面描述转为 Stitch 结构化 prompt。
+
+    Stitch 推荐格式: [Device] [Mode] [Screen Type] [Style] [Layout] [Components]
+    """
+    prompt = (
+        f"[Device] Mobile [Mode] Light [Screen Type] Game Activity Screen "
+        f"[Style] Japanese anime/manga, vibrant, One Piece theme "
+        f"[Screen Name] {screen_name} "
+        f"[Layout and Components] {description}"
+    )
+    return prompt
+
+
+def _extract_screenshot_url(mcp_result):
+    """从 Stitch MCP 返回中提取截图 downloadUrl。
+
+    响应结构:
+    result.content[0].text = JSON string with outputComponents[0].design.screens[0].screenshot.downloadUrl
+    或 result.structuredContent 直接有该结构
+    """
+    # 尝试从 structuredContent
+    struct = mcp_result.get('structuredContent', {})
+    try:
+        return (struct.get('outputComponents', [{}])[0]
+                .get('design', {})
+                .get('screens', [{}])[0]
+                .get('screenshot', {})
+                .get('downloadUrl', ''))
+    except (IndexError, AttributeError):
+        pass
+
+    # 尝试从 content[0].text（JSON 字符串）
+    content = mcp_result.get('content', [])
+    for item in content:
+        if isinstance(item, dict) and item.get('type') == 'text':
+            try:
+                data = json.loads(item['text'])
+                url = (data.get('outputComponents', [{}])[0]
+                       .get('design', {})
+                       .get('screens', [{}])[0]
+                       .get('screenshot', {})
+                       .get('downloadUrl', ''))
+                if url:
+                    return url
+            except Exception:
+                pass
+    return ''
+
+
+def _download_file(url, dest_path):
+    """下载文件到本地路径。"""
+    import urllib.request
+    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        with open(dest_path, 'wb') as f:
+            f.write(resp.read())
+
+
+def _extract_nested(obj, *keys):
+    """安全地从嵌套 dict 中提取值，任意层级 KeyError 返回 None。"""
+    for key in keys:
+        if isinstance(obj, dict):
+            obj = obj.get(key)
+        else:
+            return None
+    return obj
+
