@@ -1,29 +1,40 @@
-# ── 知识库（源数据+提炼知识，不进 git） ──
-/knowledge/
+# -- knowledge: 保留目录结构和 README，排除源数据和生成产物 --
+knowledge/gamedocs/*.docx
+knowledge/gamedocs/*.xlsx
+knowledge/gamedocs/.cache/
+knowledge/gamedata/**/*.xlsx
+knowledge/gamedata/**/*.xls
+knowledge/gamedata/**/*.txt
+knowledge/*.md
+!knowledge/README.md
+knowledge/wiki/*.md
+knowledge/wiki/*.json
+!knowledge/wiki/README.md
 
-# ── 嵌套 git 仓库 ──
+# -- 嵌套 git 仓库 --
 hfsm-test-clone/
 hfsm-agent-framework/
 
-# ── 项目开发管理（不入 git） ──
+# -- 项目开发管理 --
 .dev/
 test_sim_project/
 
-# ── 运行时产物 ──
+# -- 运行时产物 --
 output/
 references/scripts/core/table_index.db
 references/agents/*/data/
 
-# ── Python ──
+# -- Python --
 __pycache__/
 *.pyc
 *.pyo
 
-# ── IDE ──
+# -- IDE --
 .vscode/
 .idea/
 
-# ── 系统文件 ──
+# -- 系统文件 --
 Thumbs.db
 .DS_Store
-~$*.xlsx.env
+~$*.xlsx
+.env
