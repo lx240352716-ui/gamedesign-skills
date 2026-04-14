@@ -18,6 +18,8 @@ knowledge/ui_assets/
 knowledge/ui_style.md
 references/scripts/tools/generate_wireframes.py
 references/scripts/tools/test_svg_wireframe.py
+references/scripts/tools/analyze_ui_style.py
+references/agents/coordinator_memory/stitch_issues.md
 
 # -- 第三方工具（本地安装，不入库） --
 references/tools/
@@ -33,6 +35,8 @@ test_sim_project/
 # -- 运行时产物 --
 output/
 references/scripts/core/table_index.db
+references/scripts/configs/table_registry.json
+references/scripts/configs/table_vocabulary.json
 references/agents/*/data/
 
 # -- Python --
