@@ -43,7 +43,7 @@ def validate_combat_handoff(task_name):
     if errors:
         print(f'  [VALIDATE FAIL] {len(errors)} 个设计字段错误')
         for e in errors:
-            print(f'    ❌ {e}')
+            print(f'    [ERR] {e}')
     else:
         print(f'  [VALIDATE OK] 战斗策划交接数据设计字段完整')
 

@@ -53,7 +53,7 @@ for tbl, rows in exec_result['tables'].items():
 
 with open(os.path.join(DATA_DIR, 'filled_result.json'), 'w', encoding='utf-8') as f:
     json.dump(exec_result, f, ensure_ascii=False, indent=2)
-print("  ✅ filled_result.json 已写入")
+print("  [OK] filled_result.json 已写入")
 
 # ═══════════════════════════════════════════
 # State 3: write
@@ -65,12 +65,12 @@ status = r3.get('status')
 print(f"  status: {status}")
 if r3.get('errors'):
     for e in r3['errors']:
-        print(f"  ❌ {e}")
+        print(f"  [ERR] {e}")
 for tbl, info in r3.get('allocated_ids', {}).items():
     print(f"  {tbl}: {info['pk_field']} = {info['old_id']} → {info['new_id']}")
 
 if status != 'READY':
-    print("\n  ⚠️ 有错误，跳过写入")
+    print("\n  [WARN] 有错误，跳过写入")
     sys.exit(1)
 
 # ═══════════════════════════════════════════
@@ -86,5 +86,5 @@ for tbl, cnt in r4.get('results', {}).items():
     print(f"    - {tbl}: {cnt} 行")
 
 print("\n" + "=" * 60)
-print("✅ 完整管道执行完成")
+print("[OK] 完整管道执行完成")
 print("=" * 60)

@@ -47,9 +47,13 @@ def _load_env():
 class LLMClient:
     """OpenAI 兼容的 LLM 客户端。"""
 
+    # [DISABLED] 外部 API 调用已禁用，设 LLM_ENABLED=true 可恢复
+    DISABLED_MSG = "[i] LLM API disabled (LLM_ENABLED=false in .env)"
+
     def __init__(self):
         _load_env()
         self._client = None
+        self.enabled = os.environ.get('LLM_ENABLED', 'false').lower() == 'true'
         self.model = os.environ.get('LLM_MODEL', 'qwen-plus')
         self.base_url = os.environ.get(
             'LLM_BASE_URL',
@@ -58,6 +62,8 @@ class LLMClient:
         self.api_key = os.environ.get('DASHSCOPE_API_KEY', '')
         self.temperature = float(os.environ.get('LLM_TEMPERATURE', '0.7'))
         self.max_tokens = int(os.environ.get('LLM_MAX_TOKENS', '4096'))
+        if not self.enabled:
+            print(self.DISABLED_MSG)
 
     @property
     def client(self):
@@ -108,18 +114,10 @@ class LLMClient:
     def chat(self, system_prompt: str, user_message: str,
              temperature: float = None, max_tokens: int = None,
              json_mode: bool = False) -> str:
-        """发送对话请求，返回 LLM 回复文本。
+        """发送对话请求，返回 LLM 回复文本。"""
+        if not self.enabled:
+            return self.DISABLED_MSG
 
-        Args:
-            system_prompt: 系统提示（知识库 + 角色定义）
-            user_message: 用户消息
-            temperature: 温度（默认用 .env 配置）
-            max_tokens: 最大 token 数
-            json_mode: 是否强制 JSON 输出
-
-        Returns:
-            str: LLM 回复内容
-        """
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_message},
@@ -140,15 +138,10 @@ class LLMClient:
     def chat_with_history(self, system_prompt: str,
                           messages: list,
                           temperature: float = None) -> str:
-        """带历史记录的多轮对话。
+        """带历史记录的多轮对话。"""
+        if not self.enabled:
+            return self.DISABLED_MSG
 
-        Args:
-            system_prompt: 系统提示
-            messages: 历史消息列表 [{"role": "user/assistant", "content": "..."}]
-
-        Returns:
-            str: LLM 回复内容
-        """
         full_messages = [{"role": "system", "content": system_prompt}]
         full_messages.extend(messages)
 
@@ -161,11 +154,10 @@ class LLMClient:
         return resp.choices[0].message.content
 
     def chat_json(self, system_prompt: str, user_message: str) -> dict:
-        """对话并解析 JSON 返回值。
+        """对话并解析 JSON 返回值。"""
+        if not self.enabled:
+            return {"disabled": True, "message": self.DISABLED_MSG}
 
-        Returns:
-            dict: 解析后的 JSON，解析失败返回 {"raw": "原始文本", "error": "..."}
-        """
         text = self.chat(system_prompt, user_message, json_mode=True)
         try:
             return json.loads(text)

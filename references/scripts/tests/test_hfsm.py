@@ -26,7 +26,7 @@ def test_combat_then_numerical():
     model.dispatch()
     # auto: router → combat
     assert 'design_combat' in model.state
-    print("  ✅ 自动路由 → combat")
+    print("  [OK] 自动路由 → combat")
 
     # combat 做完（match→split→confirm→categorize→translate→output→review）
     model.match_done(); model.split_done(); model.confirmed()
@@ -34,14 +34,14 @@ def test_combat_then_numerical():
     # agent_done → router → _route_next → numerical
     model.agent_done()
     assert 'design_numerical' in model.state
-    print("  ✅ agent_done → router → numerical")
+    print("  [OK] agent_done → router → numerical")
 
     # numerical 做完
     model.match_done(); model.split_done(); model.confirmed(); model.locate_done(); model.fill_done()
     # agent_done → router → _route_next → 队列空 → design_complete → executor
     model.agent_done()
     assert 'executor' in model.state
-    print("  ✅ agent_done → router → 队列空 → executor")
+    print("  [OK] agent_done → router → 队列空 → executor")
 
 
 def test_numerical_only():
@@ -54,12 +54,12 @@ def test_numerical_only():
     model.dispatched_tasks = True
     model.dispatch()
     assert 'design_numerical' in model.state
-    print("  ✅ 跳过 combat → numerical")
+    print("  [OK] 跳过 combat → numerical")
 
     model.match_done(); model.split_done(); model.confirmed(); model.locate_done(); model.fill_done()
     model.agent_done()
     assert 'executor' in model.state
-    print("  ✅ agent_done → executor")
+    print("  [OK] agent_done → executor")
 
 
 def test_combat_only():
@@ -72,13 +72,13 @@ def test_combat_only():
     model.dispatched_tasks = True
     model.dispatch()
     assert 'design_combat' in model.state
-    print("  ✅ 只有 combat")
+    print("  [OK] 只有 combat")
 
     model.match_done(); model.split_done(); model.confirmed()
     model.categorize_done(); model.translate_done(); model.output_done()
     model.agent_done()
     assert 'executor' in model.state
-    print("  ✅ agent_done → executor (无 numerical)")
+    print("  [OK] agent_done → executor (无 numerical)")
 
 
 def test_guard_blocks():
@@ -88,7 +88,7 @@ def test_guard_blocks():
     model.parse_done(); model.split_done(); model.user_confirmed()
     model.dispatch()
     assert model.state == 'coordinator_dispatch'
-    print("  ✅ Guard 阻止成功")
+    print("  [OK] Guard 阻止成功")
 
 
 if __name__ == "__main__":
@@ -103,4 +103,4 @@ if __name__ == "__main__":
     print()
     test_guard_blocks()
     print("=" * 50)
-    print("全部通过 ✅")
+    print("全部通过 [OK]")

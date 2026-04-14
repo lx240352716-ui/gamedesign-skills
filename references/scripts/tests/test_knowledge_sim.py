@@ -25,10 +25,10 @@ passed = 0
 def check(name, condition, detail=""):
     global passed
     if condition:
-        print(f"  ✅ {name}")
+        print(f"  [OK] {name}")
         passed += 1
     else:
-        msg = f"  ❌ {name}" + (f" — {detail}" if detail else "")
+        msg = f"  [ERR] {name}" + (f" — {detail}" if detail else "")
         print(msg)
         errors.append(name)
 
@@ -355,5 +355,5 @@ if errors:
     print(f"失败: {errors}")
     sys.exit(1)
 else:
-    print("全部通过 ✅")
+    print("全部通过 [OK]")
     sys.exit(0)

@@ -524,7 +524,7 @@ class Workflow:
 
         for i, step in enumerate(self.steps):
             if i < self.current:
-                mark = "✅"
+                mark = "[OK]"
             elif i == self.current:
                 if self.state == self.IN_SUB_WORKFLOW:
                     mark = "🔄"

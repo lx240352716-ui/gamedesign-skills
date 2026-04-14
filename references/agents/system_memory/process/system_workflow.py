@@ -2,12 +2,12 @@
 """
 系统策划 Workflow 定义
 
-状态流程：parse → draft → delegate → wait_sub → assemble → wireframe → review → export
+状态流程：parse → draft → delegate → wait_sub → assemble → review → export
 """
 
 # -- 基本信息 --
 name = "system"
-description = "系统策划：理解需求 → 写文档 → 委托补充 → 整合 → 出图 → 导出"
+description = "系统策划：理解需求 → 写文档 → 委托补充 → 整合 → 导出"
 
 # -- 初始状态 --
 initial = "parse"
@@ -19,7 +19,7 @@ states = [
     {"name": "delegate",  "type": "script", "description": "检测是否需要 combat/numerical 补充"},
     {"name": "wait_sub",  "type": "pause",  "description": "等 combat/numerical 完成"},
     {"name": "assemble",  "type": "llm",    "description": "整合所有内容为完整文档"},
-    {"name": "wireframe", "type": "script", "description": "提取界面章节 -> 调 Stitch 生成 UI"},
+    # [SHELVED] wireframe state removed — UI generation paused
     {"name": "review",    "type": "pause",  "description": "用户确认"},
     {"name": "export",    "type": "script", "description": "导出 docx + 复制图片到 output/"},
 ]
@@ -31,8 +31,7 @@ transitions = [
     ["need_sub",    "delegate",  "wait_sub"],     # 需要其他 L1
     ["no_sub",      "delegate",  "assemble"],     # 不需要，直接整合
     ["sub_done",    "wait_sub",  "assemble"],
-    ["assembled",   "assemble",  "wireframe"],
-    ["wireframed",  "wireframe", "review"],
+    ["assembled",   "assemble",  "review"],        # [SHELVED] was: assemble → wireframe
     ["approved",    "review",    "export"],
     ["rejected",    "review",    "draft"],         # 打回修改
 ]
@@ -50,6 +49,7 @@ hooks = {
     "on_enter_draft":     "system_hooks.on_enter_draft",
     "on_enter_delegate":  "system_hooks.on_enter_delegate",
     "on_enter_assemble":  "system_hooks.on_enter_assemble",
-    "on_enter_wireframe": "system_hooks.on_enter_wireframe",
+    # [SHELVED] "on_enter_wireframe": "system_hooks.on_enter_wireframe",
     "on_enter_export":    "system_hooks.on_enter_export",
 }
+

@@ -275,7 +275,7 @@ def on_enter_done():
     _save_json(os.path.join(QA_DATA_DIR, 'l3_done.json'), done_data)
 
     print("\n" + "=" * 50)
-    print("  ✅ L3 全流程完成")
+    print("  [OK] L3 全流程完成")
     print("=" * 50)
     print(f"  需求: {done_data['requirement']}")
     for tbl, info in done_data['merge'].items():

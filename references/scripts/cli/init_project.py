@@ -64,9 +64,9 @@ def main():
         for pkg in missing:
             subprocess.check_call([sys.executable, '-m', 'pip', 'install', pkg],
                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        print(f"  ✅ {len(missing)} 个包安装完成")
+        print(f"  [OK] {len(missing)} 个包安装完成")
     else:
-        print("  ✅ 所有依赖已就绪")
+        print("  [OK] 所有依赖已就绪")
 
     print(f"  📂 Excel 目录: {EXCEL_DIR}")
 
@@ -74,7 +74,7 @@ def main():
     step(1, total_steps, "检查 Excel 目录")
     if not os.path.exists(EXCEL_DIR):
         os.makedirs(EXCEL_DIR, exist_ok=True)
-        print(f"  ⚠️ gamedata/ 目录不存在，已创建。请放入 xlsx 文件后重新运行。")
+        print(f"  [WARN] gamedata/ 目录不存在，已创建。请放入 xlsx 文件后重新运行。")
         return
 
     xlsx_files = []
@@ -84,10 +84,10 @@ def main():
                 xlsx_files.append(os.path.join(root, f))
     
     if not xlsx_files:
-        print(f"  ⚠️ gamedata/ 目录为空，请放入 xlsx 文件后重新运行。")
+        print(f"  [WARN] gamedata/ 目录为空，请放入 xlsx 文件后重新运行。")
         return
     
-    print(f"  ✅ 发现 {len(xlsx_files)} 个 xlsx 文件")
+    print(f"  [OK] 发现 {len(xlsx_files)} 个 xlsx 文件")
 
     # ── Step 2: 生成 table_registry.json ──
     step(2, total_steps, "生成表注册表 (table_registry.json)")
@@ -109,7 +109,7 @@ def main():
     with open(registry_path, 'w', encoding='utf-8') as f:
         json.dump(registry, f, ensure_ascii=False, indent=2)
     
-    print(f"  ✅ 注册 {len(registry)} 张表 → {os.path.relpath(registry_path, BASE_DIR)}")
+    print(f"  [OK] 注册 {len(registry)} 张表 → {os.path.relpath(registry_path, BASE_DIR)}")
 
     # ── Step 3: 建 SQLite 索引 ──
     step(3, total_steps, "建 SQLite 索引 (table_index.db)")
@@ -129,11 +129,11 @@ def main():
                 refresh_index(xlsx_path, tbl_name, header_row=1)
                 indexed += 1
             except Exception as e:
-                print(f"  ⚠️ {tbl_name} 索引失败: {e}")
+                print(f"  [WARN] {tbl_name} 索引失败: {e}")
         else:
             skipped += 1
     idx_time = time.time() - t_idx
-    print(f"  ✅ 索引完成: 已索引 {indexed} 张大表, 跳过 {skipped} 张小表, 耗时 {idx_time:.1f}s")
+    print(f"  [OK] 索引完成: 已索引 {indexed} 张大表, 跳过 {skipped} 张小表, 耗时 {idx_time:.1f}s")
 
     # ── Step 4: 学习词表 ──
     step(4, total_steps, "学习词表 (table_vocabulary.json)")
@@ -144,9 +144,9 @@ def main():
     vocab_time = time.time() - t_vocab
     
     if vocab:
-        print(f"  ✅ 词表学习完成: {len(vocab)} 个元数据关键词, 耗时 {vocab_time:.1f}s")
+        print(f"  [OK] 词表学习完成: {len(vocab)} 个元数据关键词, 耗时 {vocab_time:.1f}s")
     else:
-        print(f"  ⚠️ 词表学习无结果（可能表结构特殊）")
+        print(f"  [WARN] 词表学习无结果（可能表结构特殊）")
 
     # ── Step 5: 创建 Agent data/ 目录 + 验证 ──
     step(5, total_steps, "创建目录 + 基础验证")
@@ -155,7 +155,7 @@ def main():
     for agent in agents:
         data_dir = os.path.join(AGENTS_DIR, agent, 'data')
         os.makedirs(data_dir, exist_ok=True)
-    print(f"  ✅ {len(agents)} 个 Agent data/ 目录已创建")
+    print(f"  [OK] {len(agents)} 个 Agent data/ 目录已创建")
     
     # 基础验证
     from table_reader import get_columns, query_db
@@ -165,16 +165,16 @@ def main():
             cols = get_columns(test_table)
             cn_count = len(cols.get('cn', []) or [])
             en_count = len(cols.get('en', []) or [])
-            print(f"  ✅ get_columns('{test_table}'): cn={cn_count} 列, en={en_count} 列")
+            print(f"  [OK] get_columns('{test_table}'): cn={cn_count} 列, en={en_count} 列")
         except Exception as e:
-            print(f"  ⚠️ get_columns('{test_table}') 失败: {e}")
+            print(f"  [WARN] get_columns('{test_table}') 失败: {e}")
         
         try:
             rows = query_db(f"SELECT COUNT(*) as cnt FROM [{test_table}]")
             cnt = rows[0]['cnt'] if rows else '?'
-            print(f"  ✅ query_db('{test_table}'): {cnt} 行")
+            print(f"  [OK] query_db('{test_table}'): {cnt} 行")
         except Exception as e:
-            print(f"  ⚠️ query_db('{test_table}') 失败: {e}")
+            print(f"  [WARN] query_db('{test_table}') 失败: {e}")
     
     # ── 总结 ──
     total_time = time.time() - t0
@@ -183,7 +183,7 @@ def main():
     print("=" * 60)
     print(f"\n  📋 表注册表: {len(registry)} 张表")
     print(f"  🗃️ SQLite 索引: {os.path.relpath(DB_PATH, BASE_DIR)}")
-    print(f"  📖 词表: {os.path.relpath(os.path.join(CONFIGS_DIR, 'table_vocabulary.json'), BASE_DIR)}")
+    print(f"  [DOC] 词表: {os.path.relpath(os.path.join(CONFIGS_DIR, 'table_vocabulary.json'), BASE_DIR)}")
     print(f"\n  下一步:")
     print(f"    1. 填写 agents/*/knowledge/ 下的知识库文件")
     print(f"    2. 用 /design 启动策划工作流")

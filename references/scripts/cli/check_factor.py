@@ -39,5 +39,5 @@ else:
     if result:
         print(json.dumps({name: result}, ensure_ascii=False, indent=2))
     else:
-        print(f'❌ 因子 "{name}" 不在白名单中')
+        print(f'[ERR] 因子 "{name}" 不在白名单中')
         sys.exit(1)

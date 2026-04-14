@@ -52,5 +52,5 @@ print("\n验证:")
 for tbl, exp_max in expected.items():
     col_info = get_columns(tbl)
     current = max_id(tbl, col_info['cn'][0])
-    status = "✅" if current == exp_max else "❌"
+    status = "[OK]" if current == exp_max else "[ERR]"
     print(f"  {tbl}: max_id={current} {status}")

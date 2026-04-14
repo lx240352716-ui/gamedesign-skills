@@ -32,11 +32,11 @@ def test_prompt_builder():
     # 1. 角色定义
     assert 'numerical_memory' in AGENT_ROLES
     assert AGENT_ROLES['numerical_memory']['name'] == '数值策划'
-    print("  ✅ 角色定义正确")
+    print("  [OK] 角色定义正确")
 
     # 2. 知识文件加载
     files = load_knowledge_files('coordinator_memory')
-    print(f"  ✅ coordinator_memory 加载 {len(files)} 个知识文件")
+    print(f"  [OK] coordinator_memory 加载 {len(files)} 个知识文件")
 
     # 3. 构建 prompt
     prompt = build_system_prompt(
@@ -47,13 +47,13 @@ def test_prompt_builder():
     assert '数值策划' in prompt
     assert 'fill' in prompt
     assert '_Buff' in prompt
-    print(f"  ✅ system prompt 构建成功 ({len(prompt)} 字符)")
+    print(f"  [OK] system prompt 构建成功 ({len(prompt)} 字符)")
 
     # 4. 用户消息
     msg = build_user_message("新增一个速度 buff", {"buffId": 99999})
     assert '速度 buff' in msg
     assert '99999' in msg
-    print(f"  ✅ user message 构建成功")
+    print(f"  [OK] user message 构建成功")
 
     print()
 
@@ -67,12 +67,12 @@ def test_llm_client():
     client = LLMClient()
 
     if not client.api_key:
-        print("  ⚠️  DASHSCOPE_API_KEY 未设置，跳过 API 测试")
-        print("  ℹ️  设置方法：在 .env 中添加 DASHSCOPE_API_KEY=sk-xxx")
+        print("  [WARN]  DASHSCOPE_API_KEY 未设置，跳过 API 测试")
+        print("  [i]  设置方法：在 .env 中添加 DASHSCOPE_API_KEY=sk-xxx")
         return
 
-    print(f"  ℹ️  模型: {client.model}")
-    print(f"  ℹ️  地址: {client.base_url}")
+    print(f"  [i]  模型: {client.model}")
+    print(f"  [i]  地址: {client.base_url}")
 
     # 简单对话测试
     try:
@@ -80,10 +80,10 @@ def test_llm_client():
             system_prompt="你是一个游戏策划助手。回复要简洁。",
             user_message="用一句话解释什么是 Buff",
         )
-        print(f"  ✅ API 调用成功")
+        print(f"  [OK] API 调用成功")
         print(f"  📝 回复: {response[:100]}...")
     except Exception as e:
-        print(f"  ❌ API 调用失败: {e}")
+        print(f"  [ERR] API 调用失败: {e}")
         return
 
     # JSON 模式测试
@@ -93,11 +93,11 @@ def test_llm_client():
             user_message='生成一个 buff 示例：{"name": "...", "type": "..."}',
         )
         if 'error' not in result:
-            print(f"  ✅ JSON 模式成功: {result}")
+            print(f"  [OK] JSON 模式成功: {result}")
         else:
-            print(f"  ⚠️  JSON 解析失败: {result.get('error')}")
+            print(f"  [WARN]  JSON 解析失败: {result.get('error')}")
     except Exception as e:
-        print(f"  ❌ JSON 模式失败: {e}")
+        print(f"  [ERR] JSON 模式失败: {e}")
 
     print()
 
@@ -110,7 +110,7 @@ def test_integration():
 
     client = LLMClient()
     if not client.api_key:
-        print("  ⚠️  跳过集成测试（无 API Key）")
+        print("  [WARN]  跳过集成测试（无 API Key）")
         return
 
     # 使用真实知识库构建 prompt 并调用 LLM
@@ -119,10 +119,10 @@ def test_integration():
 
     try:
         response = client.chat(system_prompt, user_msg)
-        print(f"  ✅ 集成测试成功")
+        print(f"  [OK] 集成测试成功")
         print(f"  📝 回复前 200 字: {response[:200]}...")
     except Exception as e:
-        print(f"  ❌ 集成测试失败: {e}")
+        print(f"  [ERR] 集成测试失败: {e}")
 
     print()
 

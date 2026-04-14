@@ -126,7 +126,7 @@ def run_all_checks():
         errs = check_file_exists(agent_name, path)
         if errs:
             total_errors.extend(errs)
-            print(f'  ❌ 文件不存在')
+            print(f'  [ERR] 文件不存在')
             continue
 
         # 2. JSON 解析
@@ -134,7 +134,7 @@ def run_all_checks():
             data = load_json(path)
         except json.JSONDecodeError as e:
             total_errors.append(f'[{agent_name}] JSON 解析失败: {e}')
-            print(f'  ❌ JSON 解析失败')
+            print(f'  [ERR] JSON 解析失败')
             continue
 
         # 3. L3 特殊处理（pipeline 格式）
@@ -143,10 +143,10 @@ def run_all_checks():
             total_errors.extend(errs)
             if not errs:
                 total_pass += 1
-                print(f'  ✅ pipeline 格式合法 ({len(data.get("pipeline", []))} 个步骤)')
+                print(f'  [OK] pipeline 格式合法 ({len(data.get("pipeline", []))} 个步骤)')
             else:
                 for e in errs:
-                    print(f'  ❌ {e}')
+                    print(f'  [ERR] {e}')
             continue
 
         # 4. 常规 Agent 校验
@@ -168,10 +168,10 @@ def run_all_checks():
             handoff_count = len(data.get('can_handoff_to', []))
             escalate_count = len(data.get('can_escalate_to', []))
             reject_count = len(data.get('can_reject_to', []) + data.get('can_receive_rejection_from', []) + data.get('can_receive_escalation_from', []))
-            print(f'  ✅ 格式合法 (handoff:{handoff_count}, escalate:{escalate_count}, reject/receive:{reject_count})')
+            print(f'  [OK] 格式合法 (handoff:{handoff_count}, escalate:{escalate_count}, reject/receive:{reject_count})')
         else:
             for e in agent_errors:
-                print(f'  ❌ {e}')
+                print(f'  [ERR] {e}')
 
     # 汇总
     print(f'\n{"=" * 60}')

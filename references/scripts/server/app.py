@@ -30,7 +30,7 @@ def start_http_server(host='0.0.0.0', port=8000):
         from pydantic import BaseModel
         import uvicorn
     except ImportError:
-        print("❌ 请安装 fastapi + uvicorn:")
+        print("[ERR] 请安装 fastapi + uvicorn:")
         print("   pip install fastapi uvicorn")
         sys.exit(1)
 
@@ -102,7 +102,7 @@ def start_http_server(host='0.0.0.0', port=8000):
         return {"status": "ok", "version": "2.0"}
 
     print(f"🚀 HFSM HTTP Server 启动: http://{host}:{port}")
-    print(f"📖 API 文档: http://{host}:{port}/docs")
+    print(f"[DOC] API 文档: http://{host}:{port}/docs")
     uvicorn.run(app, host=host, port=port)
 
 

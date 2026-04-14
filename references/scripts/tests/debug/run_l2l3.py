@@ -67,7 +67,7 @@ r_qa = on_enter_qa()
 print(f"\n  status={r_qa['status']}, time={time.time()-t_qa:.2f}s")
 
 if r_qa['status'] == 'QA_FAILED':
-    print(f"\n  ❌ QA 不通过！")
+    print(f"\n  [ERR] QA 不通过！")
     print(f"  {r_qa.get('error_log', '')[:500]}")
     sys.exit(1)
 

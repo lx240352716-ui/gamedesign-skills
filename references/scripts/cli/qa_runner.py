@@ -39,7 +39,7 @@ def run_qa(merge_data=None, **kwargs):
 
     data = merge_data or {}
     if not data:
-        print("  ✅ 无待校验数据")
+        print("  [OK] 无待校验数据")
         return {"qa_result": "pass", "failures": []}
 
     failures = []
@@ -86,7 +86,7 @@ def run_qa(merge_data=None, **kwargs):
             failures.append(f"{tbl}: 主键重复: {dupes}")
 
         if not empty and not dupes:
-            print(f"  ✅ {tbl}.{pk_col} 校验通过 ({len(ids)} 行)")
+            print(f"  [OK] {tbl}.{pk_col} 校验通过 ({len(ids)} 行)")
 
     # ═══════════════════════════════════════════════════════
     #  2. 跨表外键（自动发现：值匹配其他表的新 ID 或源表 ID）
@@ -113,7 +113,7 @@ def run_qa(merge_data=None, **kwargs):
                         continue  # 跳过自引用
                     if id_val in str_val:
                         # 发现跨表引用：tbl.field 里包含 src_tbl 的新 ID
-                        print(f"  ✅ {tbl}.{field} 包含 {src_tbl}.{pk_info[src_tbl]}={id_val}（同批匹配）")
+                        print(f"  [OK] {tbl}.{field} 包含 {src_tbl}.{pk_info[src_tbl]}={id_val}（同批匹配）")
                         fk_found += 1
 
     if fk_found == 0:
@@ -136,7 +136,7 @@ def run_qa(merge_data=None, **kwargs):
                     if f not in whitelist:
                         failures.append(f"_Buff 因子 '{f}' 不在白名单中")
             if not [f for f in failures if '白名单' in f]:
-                print("  ✅ 因子白名单校验通过")
+                print("  [OK] 因子白名单校验通过")
     else:
         print("  ⏭️ 无 _Buff 数据，跳过")
 
@@ -150,7 +150,7 @@ def run_qa(merge_data=None, **kwargs):
             if non_empty < 2:
                 failures.append(f"{tbl} 第 {i+1} 行数据几乎全空（仅 {non_empty} 个字段有值）")
     if not [f for f in failures if '全空' in f]:
-        print("  ✅ 必填字段检查通过")
+        print("  [OK] 必填字段检查通过")
 
     # ═══════════════════════════════════════════════════════
     #  5. 数值合理性
@@ -169,7 +169,7 @@ def run_qa(merge_data=None, **kwargs):
                 except (ValueError, TypeError):
                     pass
     if not [f for f in failures if '值异常' in f]:
-        print("  ✅ 数值合理性检查通过")
+        print("  [OK] 数值合理性检查通过")
 
     # ═══════════════════════════════════════════════════════
     #  6. 格式校验
@@ -183,7 +183,7 @@ def run_qa(merge_data=None, **kwargs):
                 if len(parts) % 3 != 0:
                     failures.append(f"{tbl}.itemInfo 格式错误: '{item_info}' 不是 3 的倍数分段")
     if not [f for f in failures if '格式错误' in f]:
-        print("  ✅ 格式校验通过")
+        print("  [OK] 格式校验通过")
 
     # ═══════════════════════════════════════════════════════
     #  7. 新 ID 与源表无冲突（第一列值 vs 源表）
@@ -205,7 +205,7 @@ def run_qa(merge_data=None, **kwargs):
                 if found:
                     failures.append(f"{tbl} 新 ID {val}（字段 {pk_col}）与源表已有 ID 冲突！")
                 else:
-                    print(f"  ✅ {tbl}.{pk_col}={val} 无冲突")
+                    print(f"  [OK] {tbl}.{pk_col}={val} 无冲突")
             except Exception as e:
                 failures.append(f"查询 {tbl}.{pk_col}={val} 时出错: {e}")
 
@@ -214,14 +214,14 @@ def run_qa(merge_data=None, **kwargs):
     # ═══════════════════════════════════════════════════════
     if failures:
         print(f"\n{'=' * 50}")
-        print(f"  ❌ QA 失败 ({len(failures)} 项)")
+        print(f"  [ERR] QA 失败 ({len(failures)} 项)")
         for f in failures:
             print(f"    - {f}")
         print(f"{'=' * 50}")
         raise ValueError(f"QA 校验失败（{len(failures)} 项），阻止 merge:\n" + "\n".join(failures))
 
     print(f"\n{'=' * 50}")
-    print(f"  ✅ QA 全部通过（7 条规则）")
+    print(f"  [OK] QA 全部通过（7 条规则）")
     print(f"{'=' * 50}")
 
     return {"qa_result": "pass", "failures": []}

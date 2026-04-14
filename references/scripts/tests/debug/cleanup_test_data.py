@@ -41,7 +41,7 @@ total = len(item_pks) + len(dg_pks) + len(si_pks)
 print(f"\n  共 {total} 行待删除")
 
 if total == 0:
-    print("  已是干净状态 ✅")
+    print("  已是干净状态 [OK]")
     sys.exit(0)
 
 # ── 2. COM Excel 删除 ──
@@ -101,4 +101,4 @@ si_remain = query_db(f"SELECT COUNT(*) as c FROM [_ShopItem] WHERE {si_where}")
 print(f"\n  Item 76000xxx 残留: {remain_item[0]['c']}")
 print(f"  _DropGroup 引用 76000xxx: {dg_remain[0]['c']}")
 print(f"  _ShopItem 引用 76000xxx: {si_remain[0]['c']}")
-print("\n  ✅ 清除完成" if remain_item[0]['c'] + dg_remain[0]['c'] + si_remain[0]['c'] == 0 else "\n  ❌ 仍有残留")
+print("\n  [OK] 清除完成" if remain_item[0]['c'] + dg_remain[0]['c'] + si_remain[0]['c'] == 0 else "\n  [ERR] 仍有残留")

@@ -134,7 +134,7 @@ class HFSMController:
         with self._lock:
             if self.status == TaskStatus.RUNNING:
                 self.reply(self.user_id,
-                           "⚠️ 上一个任务还在执行中，请等待完成或发 /reset 重置。")
+                           "[WARN] 上一个任务还在执行中，请等待完成或发 /reset 重置。")
                 return
 
             self.requirement = requirement
@@ -145,7 +145,7 @@ class HFSMController:
             self._resume_event.clear()
 
         self.reply(self.user_id,
-                   f"✅ 收到需求，开始处理...\n\n> {requirement}")
+                   f"[OK] 收到需求，开始处理...\n\n> {requirement}")
 
         # 后台启动
         self._worker_thread = threading.Thread(
@@ -162,7 +162,7 @@ class HFSMController:
                 self.submit(user_input)
             else:
                 self.reply(self.user_id,
-                           "⚠️ 当前不在等待确认状态。")
+                           "[WARN] 当前不在等待确认状态。")
             return
 
         self._user_input = user_input
@@ -197,7 +197,7 @@ class HFSMController:
             self.status = TaskStatus.ERROR
             logger.error(f"Pipeline 异常: {e}", exc_info=True)
             self.reply(self.user_id,
-                       f"❌ 执行异常: {str(e)[:500]}")
+                       f"[ERR] 执行异常: {str(e)[:500]}")
 
     def _advance(self):
         """驱动状态机前进。"""
@@ -212,7 +212,7 @@ class HFSMController:
             workflow = self.workflows.get(agent)
 
             if not workflow:
-                self.reply(self.user_id, f"⚠️ 未找到 {agent} 的 workflow")
+                self.reply(self.user_id, f"[WARN] 未找到 {agent} 的 workflow")
                 self.status = TaskStatus.ERROR
                 break
 
@@ -223,7 +223,7 @@ class HFSMController:
                     state_def = s
                     break
             if not state_def:
-                self.reply(self.user_id, f"⚠️ 未找到状态 {agent}.{state_name}")
+                self.reply(self.user_id, f"[WARN] 未找到状态 {agent}.{state_name}")
                 self.status = TaskStatus.ERROR
                 break
 
@@ -246,8 +246,8 @@ class HFSMController:
                     "agent": agent,
                     "state": state_name,
                     "buttons": [
-                        {"text": "✅ 确认", "value": "确认"},
-                        {"text": "❌ 取消", "value": "取消"},
+                        {"text": "[OK] 确认", "value": "确认"},
+                        {"text": "[ERR] 取消", "value": "取消"},
                         {"text": "✏️ 修改", "value": "修改"},
                     ],
                 }
@@ -300,14 +300,14 @@ class HFSMController:
                     break
 
             elif state_type == 'script':
-                self.reply(self.user_id, f"⚙️ **{desc}**...")
+                self.reply(self.user_id, f"[*] **{desc}**...")
 
                 self._run_hook(agent, f"on_exit_{state_name}")
 
                 if state_name == 'done':
                     self.status = TaskStatus.COMPLETED
                     self.reply(self.user_id,
-                               "✅ **任务完成！** 所有步骤已执行。")
+                               "[OK] **任务完成！** 所有步骤已执行。")
                     break
 
                 if not self._transition(agent, state_name):
@@ -331,7 +331,7 @@ class HFSMController:
             self.context[f'{state_name}_response'] = response
             return response
         except Exception as e:
-            return f"❌ LLM 调用失败: {e}"
+            return f"[ERR] LLM 调用失败: {e}"
 
     def _run_hook(self, agent_name: str, hook_key: str):
         """执行 hook。"""

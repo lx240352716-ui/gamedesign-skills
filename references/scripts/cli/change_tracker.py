@@ -89,7 +89,7 @@ class ChangeTracker:
             for item in self.design_todos:
                 st = item.get('status', '⏳')
                 sub = item.get('subtask', '')
-                mark = '[x]' if st == '✅' else '[ ]'
+                mark = '[x]' if st == '[OK]' else '[ ]'
                 lines.append(f"- {mark} {sub}  {st}")
             lines.append("")
 

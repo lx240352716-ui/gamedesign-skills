@@ -93,7 +93,7 @@ print("\n[L1-3/6] confirm (自动)")
 split_data = json.load(open(os.path.join(num_data_dir, 'split_result.json'), encoding='utf-8'))
 with open(os.path.join(num_data_dir, 'confirmed_split.json'), 'w', encoding='utf-8') as f:
     json.dump(split_data, f, ensure_ascii=False, indent=2)
-print("  ✅ 自动确认")
+print("  [OK] 自动确认")
 
 print("\n[L1-4/6] locate")
 r = l1.on_enter_locate()
@@ -105,7 +105,7 @@ locate_data = json.load(open(os.path.join(num_data_dir, 'locate_result.json'), e
 # locate_result 里已有参考数据，直接透传
 with open(os.path.join(num_data_dir, 'filled.json'), 'w', encoding='utf-8') as f:
     json.dump(locate_data, f, ensure_ascii=False, indent=2)
-print("  ✅ 使用参考行数据")
+print("  [OK] 使用参考行数据")
 
 print("\n[L1-6/6] output")
 r = l1.on_enter_output()
@@ -160,7 +160,7 @@ r_qa = on_enter_qa()
 print(f"\n  status={r_qa['status']}, time={time.time()-t_qa:.2f}s")
 
 if r_qa['status'] == 'QA_FAILED':
-    print(f"\n  ❌ QA 不通过！流程停止。")
+    print(f"\n  [ERR] QA 不通过！流程停止。")
     print(f"  {r_qa.get('error_log', '')[:300]}")
     sys.exit(1)
 

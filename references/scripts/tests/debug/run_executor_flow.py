@@ -58,7 +58,7 @@ import json
 done_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'agents', 'executor_memory', 'data', 'executor_done.json')
 assert os.path.exists(done_path), "executor_done.json not found!"
 done = json.load(open(done_path, 'r', encoding='utf-8'))
-print(f"\n  executor_done.json status: {done['status']} ✅")
+print(f"\n  executor_done.json status: {done['status']} [OK]")
 
 # ══════════════════════════════════════════════
 #  L3 QA Agent（3 个状态）
@@ -74,7 +74,7 @@ t_qa = time.time()
 r_qa = l3.on_enter_qa()
 print(f"  qa_result={r_qa.get('qa_result')}, time={time.time()-t_qa:.2f}s")
 if r_qa['qa_result'] != 'pass':
-    print(f"  ⚠️ QA 报错（可能是假阳性）: {r_qa.get('error_log', '')[:100]}...")
+    print(f"  [WARN] QA 报错（可能是假阳性）: {r_qa.get('error_log', '')[:100]}...")
     print("  继续测试 merge 以验证完整流程...")
     # 仍然需要生成 qa_result.json 让 done 能读到
     import json
@@ -105,7 +105,7 @@ for tbl in ["Item", "_DropGroup", "_ShopItem"]:
     pk_cn = col_info['cn'][0]
     mid = max_id(tbl, pk_cn)
     expected = init_ids[tbl] + 1
-    status = "✅" if mid == expected else "❌"
+    status = "[OK]" if mid == expected else "[ERR]"
     print(f"  {tbl}: {init_ids[tbl]} → {mid} {status}")
 
 print(f"\n总耗时: {time.time()-t_total:.2f}s")
@@ -131,5 +131,5 @@ print("\n回滚后:")
 for tbl in ["Item", "_DropGroup", "_ShopItem"]:
     col_info = get_columns(tbl)
     mid = max_id(tbl, col_info['cn'][0])
-    status = "✅" if mid == init_ids[tbl] else "❌"
+    status = "[OK]" if mid == init_ids[tbl] else "[ERR]"
     print(f"  {tbl} max_id = {mid} {status}")

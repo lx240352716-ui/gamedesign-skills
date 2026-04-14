@@ -133,7 +133,7 @@ def start_bot():
     app_secret = os.environ.get('DINGTALK_APP_SECRET', '')
 
     if not app_key or not app_secret:
-        print("❌ 请在 .env 中设置 DINGTALK_APP_KEY 和 DINGTALK_APP_SECRET")
+        print("[ERR] 请在 .env 中设置 DINGTALK_APP_KEY 和 DINGTALK_APP_SECRET")
         sys.exit(1)
 
     logger.info(f"🚀 钉钉机器人启动 (AppKey: {app_key[:8]}...)")
@@ -145,7 +145,7 @@ def start_bot():
         HFSMBotHandler(),
     )
 
-    logger.info("✅ 连接钉钉服务器...")
+    logger.info("[OK] 连接钉钉服务器...")
     client.start_forever()
 
 
