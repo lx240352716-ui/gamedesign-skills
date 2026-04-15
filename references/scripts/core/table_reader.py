@@ -160,6 +160,13 @@ def _get_table_path(table_name):
         with open(reg_path, 'r', encoding='utf-8') as f:
             _table_registry = _json.load(f)
     entry = _table_registry.get(table_name)
+    # basename 模糊匹配：BeastPiratesBoss -> BeastPirates/BeastPiratesBoss
+    if not entry:
+        suffix = '/' + table_name
+        candidates = [k for k in _table_registry if k.endswith(suffix)]
+        if len(candidates) == 1:
+            table_name = candidates[0]
+            entry = _table_registry[table_name]
     if not entry:
         return None
     rel_path = entry if isinstance(entry, str) else entry.get('path', '')
