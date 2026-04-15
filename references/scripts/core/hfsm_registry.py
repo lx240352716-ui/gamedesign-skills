@@ -56,20 +56,39 @@ WORKFLOW_PATHS = {
 
 # ── 知识加载 ────────────────────────────────────────
 
-# 公有知识清单（懒加载）
-_manifest_text_cache = None
+# 公有知识（wiki）缓存（懒加载）
+_wiki_knowledge_cache = None
 
 
 def _get_manifest_text():
-    """获取公有知识清单文本（带模块级缓存）。"""
-    global _manifest_text_cache
-    if _manifest_text_cache is None:
-        try:
-            from knowledge_search import get_manifest_text
-            _manifest_text_cache = get_manifest_text() or ""
-        except ImportError:
-            _manifest_text_cache = ""
-    return _manifest_text_cache
+    """获取公有知识文本：wiki/index.md + wiki/concepts.md 全文（带模块级缓存）。
+
+    设计思路：
+    - wiki（index + concepts）作为公有知识基础，每个 on_enter 自动注入
+    - entities.md (56KB) 太大，LLM 需要时自行读取
+    - gamedocs 不再自动注入清单，LLM 从 wiki 知道有哪些文档后按需深读
+    """
+    global _wiki_knowledge_cache
+    if _wiki_knowledge_cache is None:
+        parts = []
+        # wiki 目录在 knowledge/wiki/ 下
+        wiki_dir = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+            'knowledge', 'wiki'
+        )
+        # 全量读 index.md 和 concepts.md
+        for fname in ('index.md', 'concepts.md'):
+            fpath = os.path.join(wiki_dir, fname)
+            if os.path.exists(fpath):
+                try:
+                    with open(fpath, 'r', encoding='utf-8') as f:
+                        content = f.read().strip()
+                    if content:
+                        parts.append(content)
+                except Exception:
+                    pass
+        _wiki_knowledge_cache = '\n\n---\n\n'.join(parts) if parts else ""
+    return _wiki_knowledge_cache
 
 
 def load_state_knowledge(agent_name, state_name, workflow_mod=None):
