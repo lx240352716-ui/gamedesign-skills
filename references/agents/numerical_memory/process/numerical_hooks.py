@@ -26,7 +26,66 @@ NUMERICAL_DIR = _p['agent_dir']
 KNOWLEDGE_DIR = _p['knowledge_dir']
 DATA_DIR = _p['data_dir']
 COORDINATOR_DATA = agent_paths('coordinator_memory')['data_dir']
+SYSTEM_DATA_DIR = agent_paths('system_memory')['data_dir']
 REGISTRY_PATH = os.path.join(CONFIGS_DIR, 'table_registry.json')
+
+
+# ── /doc 模式 hooks ─────────────────────────────────
+
+def on_enter_draft():
+    """/doc 模式: 读上游 system draft.md + plan.json -> 返回上下文供 LLM 写数值设计文档。"""
+    context = {}
+
+    # 1. 读 plan.json 获取本 agent 的任务描述
+    plan_path = os.path.join(COORDINATOR_DATA, 'plan.json')
+    if os.path.exists(plan_path):
+        with open(plan_path, 'r', encoding='utf-8') as f:
+            plan = json.load(f)
+        for item in plan.get('todo', []):
+            if item.get('agent') == 'numerical':
+                context['task'] = item.get('task', '')
+                context['input_from'] = item.get('input', '')
+                break
+
+    # 2. 读上游 system draft.md 作为参考
+    system_draft = os.path.join(SYSTEM_DATA_DIR, 'draft.md')
+    if os.path.exists(system_draft):
+        with open(system_draft, 'r', encoding='utf-8') as f:
+            context['system_draft'] = f.read()
+
+    # 3. 读本 agent 已有的 draft.md（如果有，用于继续编辑）
+    my_draft = os.path.join(DATA_DIR, 'draft.md')
+    if os.path.exists(my_draft):
+        with open(my_draft, 'r', encoding='utf-8') as f:
+            context['existing_draft'] = f.read()
+
+    instruction = (
+        "你是数值策划。请根据上游系统设计文档和任务描述，写出数值设计方案。\n"
+        "产出写入 data/draft.md。\n"
+        "方案需包含：数值模型、参数表、经济投放验证。\n"
+        "写完后输出 trigger: drafted"
+    )
+
+    return {
+        "instruction": instruction,
+        "context": context,
+        "knowledge": [],
+    }
+
+
+def on_enter_done():
+    """/doc 模式: 标记数值策划完成，更新 plan.json。"""
+    plan_path = os.path.join(COORDINATOR_DATA, 'plan.json')
+    if os.path.exists(plan_path):
+        with open(plan_path, 'r', encoding='utf-8') as f:
+            plan = json.load(f)
+        for item in plan.get('todo', []):
+            if item.get('agent') == 'numerical' and item.get('status') == 'running':
+                item['status'] = 'done'
+        with open(plan_path, 'w', encoding='utf-8') as f:
+            json.dump(plan, f, ensure_ascii=False, indent=2)
+
+    return {"status": "done", "trigger": "agent_done"}
 
 from hook_utils import load_json as _load_json, save_json as _save_json
 from hook_utils import load_md as _load_md_raw, init_pending, append_pending
@@ -154,9 +213,17 @@ def on_enter_locate():
     """
     from table_reader import query_db
 
-    confirmed = _load_json(os.path.join(DATA_DIR, 'confirmed_split.json'))
+    confirmed_path = os.path.join(DATA_DIR, 'confirmed_split.json')
+    confirmed = _load_json(confirmed_path)
     if not confirmed:
-        return {"status": "ERROR", "reason": "confirmed_split.json not found"}
+        # fallback: confirm 步骤被跳过时，自动从 split_result.json 复制
+        split_path = os.path.join(DATA_DIR, 'split_result.json')
+        confirmed = _load_json(split_path)
+        if confirmed:
+            _save_json(confirmed_path, confirmed)
+            print("  [WARN] confirmed_split.json not found, auto-copied from split_result.json")
+        else:
+            return {"status": "ERROR", "reason": "confirmed_split.json and split_result.json both not found"}
 
     table_dir = _load_md('table_directory.md')
 

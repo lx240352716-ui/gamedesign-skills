@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
 """
-HFSM 启动/恢复脚本 — 由 /design 和 /quick skill 调用。
+工作流启动/恢复脚本 — 所有 Skill 的统一入口。
 
 功能：
-    - 首次启动：构建 HFSM，进入 L0，保存状态
+    - 首次启动：构建工作流状态机，进入初始状态，保存状态
     - 恢复：从 task_state.json 加载上次的状态
     - 快速模式（--start-at）：跳过 L0，直接从 L1 开始
-    - 输出当前状态信息，供 LLM 读取
+    - --check：仅做 preflight 校验，不启动状态机
+    - --skill：指定 Skill（doc, excel, design）
+
+重命名自 hfsm_bootstrap.py
 """
 
 import os
@@ -33,14 +36,18 @@ def preflight_check():
     """
     errors = []
 
-    # 1. 核心脚本
+    # 1. 核心脚本（新旧文件都检查，至少有一个存在即可）
     core_files = [
-        'hfsm_registry.py', 'machine.py', 'machine_hooks.py',
+        'workflow_engine.py', 'machine.py', 'machine_hooks.py',
         'hook_utils.py', 'constants.py', 'table_reader.py',
         'knowledge_search.py', 'knowledge_index.py',
     ]
     for f in core_files:
         if not os.path.exists(os.path.join(CORE_DIR, f)):
+            # 兼容旧文件名
+            old_name = f.replace('workflow_engine.py', 'hfsm_registry.py')
+            if old_name != f and os.path.exists(os.path.join(CORE_DIR, old_name)):
+                continue
             errors.append(f"[MISSING] core/{f}")
 
     # 2. Workflow + Hooks 文件
@@ -68,7 +75,7 @@ def preflight_check():
     # 结果
     if errors:
         print("=" * 50)
-        print("  [ERR] HFSM Preflight FAILED")
+        print("  [ERR] Preflight FAILED")
         print("=" * 50)
         for e in errors:
             print(f"  {e}")
@@ -79,9 +86,17 @@ def preflight_check():
     return True
 
 
-from hfsm_registry import build_hfsm
+# ── 导入引擎 ────────────────────────────────────────
 
-# Agent → 知识库目录映射
+try:
+    from workflow_engine import build_workflow
+except ImportError:
+    # 兼容旧文件名
+    from hfsm_registry import build_hfsm as _old_build
+    def build_workflow(skill_name="design"):
+        return _old_build()
+
+# Agent -> 知识库目录映射
 KNOWLEDGE_MAP = {
     "L0": os.path.join(AGENTS_DIR, 'coordinator_memory', 'knowledge'),
     "L1.combat": os.path.join(AGENTS_DIR, 'combat_memory', 'knowledge'),
@@ -90,7 +105,7 @@ KNOWLEDGE_MAP = {
     "L2": os.path.join(AGENTS_DIR, 'executor_memory'),
 }
 
-# --start-at 参数 → pytransitions 状态名 映射
+# --start-at 参数 -> pytransitions 状态名映射
 START_MAP = {
     "L1.combat": "design_combat",
     "L1.numerical": "design_numerical",
@@ -100,19 +115,21 @@ START_MAP = {
 
 
 def _state_to_layer(state_str):
-    """从 pytransitions 状态名解析出层级 key（对应 KNOWLEDGE_MAP）"""
+    """从 pytransitions 状态名解析出层级 key"""
     if not state_str:
         return None
     if state_str.startswith('coordinator'):
         return "L0"
-    elif state_str.startswith('design_combat'):
+    elif state_str.startswith('design_combat') or state_str.startswith('docwork_combat') or state_str.startswith('excelwork_combat'):
         return "L1.combat"
-    elif state_str.startswith('design_numerical'):
+    elif state_str.startswith('design_numerical') or state_str.startswith('docwork_numerical') or state_str.startswith('excelwork_numerical'):
         return "L1.numerical"
-    elif state_str.startswith('design_system'):
+    elif state_str.startswith('design_system') or state_str.startswith('docwork_system'):
         return "L1.system"
     elif state_str.startswith('executor'):
         return "L2"
+    elif state_str in ('deliver', 'completed'):
+        return state_str
     return None
 
 
@@ -141,16 +158,36 @@ def get_current_agent_info(model):
 
     if state.startswith('coordinator'):
         return {"layer": layer, "agent": "主策划", "step": '_'.join(parts[1:]) if len(parts) > 1 else None}
+    # /design 的 L1
     elif state.startswith('design_combat'):
         return {"layer": layer, "agent": "战斗策划", "step": '_'.join(parts[2:]) if len(parts) > 2 else None}
     elif state.startswith('design_numerical'):
         return {"layer": layer, "agent": "数值策划", "step": '_'.join(parts[2:]) if len(parts) > 2 else None}
     elif state.startswith('design_system'):
         return {"layer": layer, "agent": "系统策划", "step": '_'.join(parts[2:]) if len(parts) > 2 else None}
+    # /doc 的 L1
+    elif state.startswith('docwork_system'):
+        return {"layer": layer, "agent": "系统策划", "step": '_'.join(parts[2:]) if len(parts) > 2 else None}
+    elif state.startswith('docwork_numerical'):
+        return {"layer": layer, "agent": "数值策划", "step": '_'.join(parts[2:]) if len(parts) > 2 else None}
+    elif state.startswith('docwork_combat'):
+        return {"layer": layer, "agent": "战斗策划", "step": '_'.join(parts[2:]) if len(parts) > 2 else None}
+    elif state.startswith('docwork_router'):
+        return {"layer": "L1", "agent": "路由", "step": "router"}
+    # /excel 的 L1
+    elif state.startswith('excelwork_numerical'):
+        return {"layer": layer, "agent": "数值策划", "step": '_'.join(parts[2:]) if len(parts) > 2 else None}
+    elif state.startswith('excelwork_combat'):
+        return {"layer": layer, "agent": "战斗策划", "step": '_'.join(parts[2:]) if len(parts) > 2 else None}
+    elif state.startswith('excelwork_router'):
+        return {"layer": "L1", "agent": "路由", "step": "router"}
+    # 其他
     elif state.startswith('executor'):
         return {"layer": layer, "agent": "执行策划", "step": '_'.join(parts[1:]) if len(parts) > 1 else None}
     elif state.startswith('pipeline'):
         return {"layer": "L3", "agent": "QA", "step": '_'.join(parts[1:]) if len(parts) > 1 else None}
+    elif state == 'deliver':
+        return {"layer": "deliver", "agent": "主策划", "step": "deliver"}
     elif state == 'completed':
         return {"layer": "completed", "agent": None, "step": None}
     else:
@@ -158,29 +195,15 @@ def get_current_agent_info(model):
 
 
 def _invoke_current_hook(model):
-    """根据当前状态，查找并调用对应的 on_enter hook。
-
-    pytransitions 的 set_state() 不触发回调，所以需要手动调用。
-    hook 返回的 dict 包含 instruction/knowledge 供 LLM 使用。
-
-    查找顺序：
-        1. on_enter_<current_state>（精确匹配）
-        2. on_enter_<current_state>_<initial>（父状态 → 初始子状态）
-
-    Returns:
-        dict or None: hook 的返回值，或 None（无 hook）
-    """
+    """根据当前状态，查找并调用对应的 on_enter hook。"""
     state = model.state
     if not state:
         return None
 
-    # 尝试 1：精确匹配当前状态
     hook_method = f"on_enter_{state}"
     fn = getattr(model, hook_method, None)
 
-    # 尝试 2：当前状态是父状态，查初始子状态
     if not (fn and callable(fn)):
-        # 从 workflows 获取对应 agent 的 initial state
         workflows = getattr(model, 'workflows', {})
         for wf_name, wf_mod in workflows.items():
             prefix = f"design_{wf_name}" if wf_name not in ('coordinator', 'executor', 'qa') else wf_name
@@ -190,7 +213,6 @@ def _invoke_current_hook(model):
                     hook_method = f"on_enter_{prefix}_{initial}"
                     fn = getattr(model, hook_method, None)
                     if fn and callable(fn):
-                        # 同时更新 task_state.json 为精确子状态
                         precise_state = f"{prefix}_{initial}"
                         model.machine.set_state(precise_state, model)
                         _save_state(model.state)
@@ -206,40 +228,41 @@ def _invoke_current_hook(model):
     return None
 
 
-def _save_state(state_str):
+def _save_state(state_str, skill_name=None):
     """保存状态到 task_state.json"""
     os.makedirs(OUTPUT_DIR, exist_ok=True)
+    data = {"state": state_str}
+    if skill_name:
+        data["skill"] = skill_name
     with open(STATE_FILE, 'w', encoding='utf-8') as f:
-        json.dump({"state": state_str}, f, ensure_ascii=False, indent=2)
+        json.dump(data, f, ensure_ascii=False, indent=2)
 
 
-def bootstrap(start_at=None):
-    """启动或恢复 HFSM
+def bootstrap(skill="design", start_at=None):
+    """启动或恢复工作流
 
     Args:
+        skill: Skill 名称（"design", "doc", "excel"）
         start_at: 可选，直接从指定层级开始（如 'L1.combat'），跳过 L0。
-                  用于 S_Express 快速模式。
     """
-    # ── 启动前校验 ──
+    # 启动前校验
     if not preflight_check():
         return None
 
-    model = build_hfsm()
+    model = build_workflow(skill)
 
     if start_at:
-        # ── 快速模式：跳到指定层级 ──
+        # 快速模式
         if start_at not in START_MAP:
-            print(f"错误：未知的目标状态 '{start_at}'")
-            print(f"可选值：{list(START_MAP.keys())}")
+            print(f"  [ERR] 未知的目标状态 '{start_at}'")
+            print(f"  可选值: {list(START_MAP.keys())}")
             return None
         target_state = START_MAP[start_at]
         model.machine.set_state(target_state, model)
-        os.makedirs(OUTPUT_DIR, exist_ok=True)
-        with open(STATE_FILE, 'w', encoding='utf-8') as f:
-            json.dump({"state": model.state}, f, ensure_ascii=False, indent=2)
+        _save_state(model.state, skill)
         mode = f"快速模式（从 {start_at} 开始）"
     elif os.path.exists(STATE_FILE):
-        # ── 恢复模式 ──
+        # 恢复模式
         with open(STATE_FILE, 'r', encoding='utf-8') as f:
             saved = json.load(f)
         saved_state = saved.get('state')
@@ -247,10 +270,8 @@ def bootstrap(start_at=None):
             model.machine.set_state(saved_state, model)
         mode = "恢复"
     else:
-        # ── 首次启动（自动进入 coordinator 初始状态） ──
-        os.makedirs(OUTPUT_DIR, exist_ok=True)
-        with open(STATE_FILE, 'w', encoding='utf-8') as f:
-            json.dump({"state": model.state}, f, ensure_ascii=False, indent=2)
+        # 首次启动
+        _save_state(model.state, skill)
         mode = "首次启动"
 
     # 获取当前状态信息
@@ -261,8 +282,9 @@ def bootstrap(start_at=None):
     hook_result = _invoke_current_hook(model)
 
     # 输出状态报告
+    skill_label = f"[{skill}] " if skill != "design" else ""
     print("=" * 50)
-    print(f"HFSM {mode}")
+    print(f"{skill_label}Workflow {mode}")
     print("=" * 50)
     print(f"  当前状态: {model.state}")
     print(f"  当前层级: {agent_info['layer']}")
@@ -282,6 +304,7 @@ def bootstrap(start_at=None):
 
     result = {
         "mode": mode,
+        "skill": skill,
         "state": agent_info,
         "raw_state": model.state,
         "knowledge_files": [os.path.basename(f) for f in knowledge],
@@ -294,11 +317,13 @@ def bootstrap(start_at=None):
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description='HFSM 启动/恢复脚本')
+    parser = argparse.ArgumentParser(description='工作流启动/恢复脚本')
+    parser.add_argument('--skill', type=str, default='excel',
+                        help='Skill 名称: excel, doc, design (default: excel)')
     parser.add_argument('--start-at', type=str, default=None,
                         help='直接从指定层级开始，跳过 L0（如 L1.combat, L1.numerical）')
     parser.add_argument('--check', action='store_true',
-                        help='仅做 preflight 检查，不启动状态机。所有 workflow 可用此做启动前校验。')
+                        help='仅做 preflight 检查，不启动状态机')
     args = parser.parse_args()
 
     if args.check:
@@ -307,5 +332,4 @@ if __name__ == "__main__":
             print("  [OK] Preflight passed. All core files and dependencies are intact.")
         sys.exit(0 if ok else 1)
     else:
-        bootstrap(start_at=args.start_at)
-
+        bootstrap(skill=args.skill, start_at=args.start_at)

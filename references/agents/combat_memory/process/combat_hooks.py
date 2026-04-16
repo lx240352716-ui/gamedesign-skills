@@ -32,7 +32,68 @@ _p = agent_paths('combat_memory')
 KNOWLEDGE_DIR = _p['knowledge_dir']
 DATA_DIR = _p['data_dir']
 COORDINATOR_DATA = agent_paths('coordinator_memory')['data_dir']
+SYSTEM_DATA_DIR = agent_paths('system_memory')['data_dir']
 
+
+# ── /doc 模式 hooks ─────────────────────────────────
+
+def on_enter_draft():
+    """/doc 模式: 读上游 system draft.md + plan.json -> 返回上下文供 LLM 写战斗设计文档。"""
+    context = {}
+
+    # 1. 读 plan.json 获取本 agent 的任务描述
+    plan_path = os.path.join(COORDINATOR_DATA, 'plan.json')
+    if os.path.exists(plan_path):
+        with open(plan_path, 'r', encoding='utf-8') as f:
+            plan = json.load(f)
+        for item in plan.get('todo', []):
+            if item.get('agent') == 'combat':
+                context['task'] = item.get('task', '')
+                context['input_from'] = item.get('input', '')
+                break
+
+    # 2. 读上游 system draft.md 作为参考
+    system_draft = os.path.join(SYSTEM_DATA_DIR, 'draft.md')
+    if os.path.exists(system_draft):
+        with open(system_draft, 'r', encoding='utf-8') as f:
+            context['system_draft'] = f.read()
+
+    # 3. 读本 agent 已有的 draft.md（如果有，用于继续编辑）
+    my_draft = os.path.join(DATA_DIR, 'draft.md')
+    if os.path.exists(my_draft):
+        with open(my_draft, 'r', encoding='utf-8') as f:
+            context['existing_draft'] = f.read()
+
+    instruction = (
+        "你是战斗策划。请根据上游系统设计文档和任务描述，写出战斗设计方案。\n"
+        "产出写入 data/draft.md。\n"
+        "方案需包含：战斗机制、技能设计、Boss设计、元素系统。\n"
+        "写完后输出 trigger: drafted"
+    )
+
+    return {
+        "instruction": instruction,
+        "context": context,
+        "knowledge": [],
+    }
+
+
+def on_enter_done():
+    """/doc 模式: 标记战斗策划完成，更新 plan.json。"""
+    plan_path = os.path.join(COORDINATOR_DATA, 'plan.json')
+    if os.path.exists(plan_path):
+        with open(plan_path, 'r', encoding='utf-8') as f:
+            plan = json.load(f)
+        for item in plan.get('todo', []):
+            if item.get('agent') == 'combat' and item.get('status') == 'running':
+                item['status'] = 'done'
+        with open(plan_path, 'w', encoding='utf-8') as f:
+            json.dump(plan, f, ensure_ascii=False, indent=2)
+
+    return {"status": "done", "trigger": "agent_done"}
+
+
+# ── /excel 模式 hooks（原有） ───────────────────────
 
 def _load_md(filename):
     """加载知识库 MD 文件"""
@@ -125,7 +186,12 @@ def on_enter_categorize():
     """
     进入 categorize: 加载确认后的拆分 + 分类规则 → LLM 分类。
     """
-    confirmed = _load_json(os.path.join(DATA_DIR, 'confirmed_split.json')) or {}
+    confirmed = _load_json(os.path.join(DATA_DIR, 'confirmed_split.json'))
+    if not confirmed:
+        confirmed = _load_json(os.path.join(DATA_DIR, 'split_result.json')) or {}
+        if confirmed:
+            _save_json(os.path.join(DATA_DIR, 'confirmed_split.json'), confirmed)
+            print("  [WARN] confirmed_split.json not found, auto-copied from split_result.json")
 
     return {
         "knowledge": [
@@ -196,7 +262,12 @@ def on_enter_output():
     注入 field_context 供 LLM 校验字段名。
     """
     translated = _load_json(os.path.join(DATA_DIR, 'translated.json')) or {}
-    confirmed = _load_json(os.path.join(DATA_DIR, 'confirmed_split.json')) or {}
+    confirmed = _load_json(os.path.join(DATA_DIR, 'confirmed_split.json'))
+    if not confirmed:
+        confirmed = _load_json(os.path.join(DATA_DIR, 'split_result.json')) or {}
+        if confirmed:
+            _save_json(os.path.join(DATA_DIR, 'confirmed_split.json'), confirmed)
+            print("  [WARN] confirmed_split.json not found, auto-copied from split_result.json")
 
     tables = translated.get('tables', {})
     requirement = confirmed.get('requirement', translated.get('requirement', ''))

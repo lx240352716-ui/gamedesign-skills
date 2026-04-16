@@ -11,13 +11,15 @@ whenToUse: "用户问做到哪了、当前进度、任务状态"
 1. 检查状态文件是否存在：
 
 // turbo
+
 ```shell
-python scripts/core/hfsm_bootstrap.py
+python scripts/core/workflow_runner.py
 ```
 
-2. 根据输出判断：
+1. 根据输出判断：
 
 **如果有进行中的任务**，用表格总结：
+
 - 当前层级（coordinator / design / executor / pipeline）
 - 当前 Agent（主策划 / 战斗策划 / 数值策划 / 执行策划 / QA）
 - 当前步骤

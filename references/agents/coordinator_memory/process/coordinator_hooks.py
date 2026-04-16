@@ -338,3 +338,85 @@ def on_enter_done():
         "message": "任务完成。所有中间数据已清理，案例已归档。建议开新对话处理下一个需求。",
     }
 
+
+# ── /doc 模式 hooks ─────────────────────────────────
+
+def on_enter_plan():
+    """/doc 模式: 理解需求后，拆分 L1 TODO 列表。
+
+    LLM 需要写 data/plan.json，格式见 implementation_plan.md。
+    """
+    knowledge = load_md_batch(KNOWLEDGE_DIR, [
+        'coordinator_rules.md',
+        'coordinator_examples.md',
+    ])
+
+    instruction = (
+        "你是项目经理。请根据已理解的需求，拆分 L1 TODO 列表。\n"
+        "规则：\n"
+        "  1. system 策划永远排第一（其他 agent 依赖它的输出）\n"
+        "  2. 每个 agent 定义 task（要做什么）、input（读哪个文件）、output（写哪个文件）\n"
+        "  3. 产出写入 data/plan.json\n"
+        "格式：\n"
+        '  {"task_id": "时间戳", "requirement": "需求描述",\n'
+        '   "todo": [{"order": 1, "agent": "system", "task": "...",\n'
+        '            "input": null, "output": "system_memory/data/draft.md", "status": "pending"}, ...]}\n'
+        "写完后输出 trigger: planned"
+    )
+
+    return {"knowledge": knowledge, "instruction": instruction}
+
+
+def on_enter_sync():
+    """/doc 模式: L1 完成后，更新 plan.json 的 TODO 状态。"""
+    plan_path = os.path.join(DATA_DIR, 'plan.json')
+    if not os.path.exists(plan_path):
+        return {"error": "plan.json not found"}
+
+    with open(plan_path, 'r', encoding='utf-8') as f:
+        plan = json.load(f)
+
+    updated = []
+    for item in plan.get('todo', []):
+        if item.get('status') == 'running':
+            output_path = os.path.join(AGENTS_DIR, item.get('output', ''))
+            if os.path.exists(output_path):
+                item['status'] = 'done'
+                updated.append(item['agent'])
+
+    with open(plan_path, 'w', encoding='utf-8') as f:
+        json.dump(plan, f, ensure_ascii=False, indent=2)
+
+    return {"status": "synced", "updated_agents": updated, "trigger": "synced"}
+
+
+def on_enter_run_next():
+    """/doc 模式: 检查 plan.json，派发下一个 L1 或结束。"""
+    plan_path = os.path.join(DATA_DIR, 'plan.json')
+    if not os.path.exists(plan_path):
+        return {"error": "plan.json not found"}
+
+    with open(plan_path, 'r', encoding='utf-8') as f:
+        plan = json.load(f)
+
+    for item in sorted(plan.get('todo', []), key=lambda x: x.get('order', 99)):
+        if item.get('status') == 'pending':
+            # 检查依赖: input 文件已存在
+            input_file = item.get('input')
+            if input_file is None or os.path.exists(os.path.join(AGENTS_DIR, input_file)):
+                item['status'] = 'running'
+                with open(plan_path, 'w', encoding='utf-8') as f:
+                    json.dump(plan, f, ensure_ascii=False, indent=2)
+                return {
+                    "trigger": "has_next",
+                    "next_agent": item['agent'],
+                    "task": item['task'],
+                    "instruction": f"派发给 {item['agent']} 策划：{item['task']}",
+                }
+
+    # 全部完成
+    return {
+        "trigger": "all_done",
+        "instruction": "所有 L1 agent 已完成，交付给用户。",
+    }
+

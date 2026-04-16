@@ -16,6 +16,16 @@ whenToUse: "用户要查因子名、查表结构、查字段、查ID、查配表
 2. **必须执行脚本获取真实结果**，禁止猜测或编造任何查询结果
 3. **PowerShell 编码问题**：SQL 中的 `%`（LIKE 通配符）和中文字符必须通过脚本参数传入，不要在 PowerShell 中直接拼接
 
+## Step 0: Preflight 检查
+
+// turbo
+
+```shell
+python scripts/core/workflow_runner.py --check
+```
+
+如果检查失败，告诉用户先运行 `/init` 修复项目。
+
 ## 工具清单
 
 你有且只有以下 3 个工具，根据用户输入选择一个执行：
@@ -25,6 +35,7 @@ whenToUse: "用户要查因子名、查表结构、查字段、查ID、查配表
 当用户输入像因子名（如 speed、cri、连击、暴击、减速）时执行：
 
 // turbo
+
 ```shell
 python scripts/cli/check_factor.py <因子名>
 ```
@@ -34,6 +45,7 @@ python scripts/cli/check_factor.py <因子名>
 当用户输入像表名或字段名（如 FightBuff、buffId、技能表、Skill）时执行：
 
 // turbo
+
 ```shell
 python scripts/cli/search_table.py <关键词>
 ```
@@ -43,6 +55,7 @@ python scripts/cli/search_table.py <关键词>
 当用户输入包含 SELECT 或明确要求精确查询时执行：
 
 // turbo
+
 ```shell
 python scripts/cli/query.py "<SQL语句>"
 ```

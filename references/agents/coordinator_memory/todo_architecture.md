@@ -5,6 +5,49 @@
 
 ---
 
+## Phase 5: Skill 架构重构（2026-04-16 规划）
+
+> 详细方案见 implementation_plan.md
+
+### Phase 0: 抽象引擎 + 重命名 ✅（2026-04-16）
+
+- [x] `hfsm_registry.py` → `workflow_engine.py`（通用工作流引擎）
+- [x] `hfsm_bootstrap.py` → `workflow_runner.py`（启动/恢复脚本）
+- [x] `build_hfsm()` → `build_workflow(config)`（声明式配置构建）
+- [x] 所有 workflow .md 引用更新
+- [ ] CLAUDE.md 引用更新
+
+### Phase 1: `/doc` Skill（出设计文档）✅（2026-04-16）
+
+- [x] 新建 `.agents/workflows/doc.md`
+- [x] L0 coordinator: 新增 `plan`+`sync`+`run_next` hooks
+- [x] L1 数值: 新建 `numerical_doc_workflow.py`（draft → review → done）
+- [x] L1 战斗: 新建 `combat_doc_workflow.py`（draft → review → done）
+- [x] L1 系统: 复用已有 workflow（不变）
+- [x] 各 agent `on_enter_draft` + `on_enter_done` hook 实现
+- [x] `_build_doc_pipeline` 状态机构建实现
+- [x] --skill doc 和 --skill design 双向测试通过
+
+### Phase 2: `/excel` Skill（填配表，原 /design）✅（2026-04-16）
+
+- [x] 新建 `.agents/workflows/excel.md`
+- [x] L1 数值: 新建 `numerical_excel_workflow.py`（复用现有填表状态）
+- [x] L1 战斗: 新建 `combat_excel_workflow.py`（复用现有填表状态）
+- [x] 前置检查: draft.md 必须存在
+- [x] `_build_excel_pipeline` 实现 + 测试通过
+
+### 后续
+
+- [ ] 重构 `/quick` — 明确与状态机的交互方式
+- [ ] 重构 `/consult` — 明确知识加载和回答流程
+
+### 已完成（本轮测试修复）
+
+- [x] `on_enter_locate/categorize/output` fallback: 自动从 `split_result.json` 复制
+- [x] `preflight_check()` 全局启动检查（所有 workflow 覆盖）
+
+---
+
 ## Phase 3: Stitch MCP 接入（wireframe 状态）✅ 已完成（2026-04-13）
 
 ### 实现细节
